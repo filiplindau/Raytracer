@@ -51,5 +51,6 @@ class Collimated1DSource(RaySource):
         for rn in range(self.numRays):
             x = np.array([xDim * (-0.5 + 1.0*rn/self.numRays), 0, 0, 1])
             xp = np.array([0,0,1,0])
-            r = Ray.Ray(x, xp, l, W)
+            n = 1.0
+            r = Ray.Ray(x, xp, n, l, W)
             self.rays.append(r)
