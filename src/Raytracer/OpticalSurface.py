@@ -83,19 +83,15 @@ class Surface(object):
         print "xNew: ", xNew  
         return (xNew, xpNew, self.n)
     
-    def findIntersectionRay(self, ray):
-        """ This is for intersection with a plane surface. Reimplement for new surface types. 
+    def findIntersectionRay(self, ray, xMel, xMTel, xpMel):
+        """ This is for intersection with a plane surface. Re-implement for new surface types. 
         Needs to find ray intersection and surface normal.
         """
-        x = ray.x[-1]
-        xp = ray.xp[-1]
+        x = np.dot(xpMel, np.dot(xMel, ray.x[-1]))
+        xp = np.dot(xpMel, ray.xp[-1])
         n0 = ray.n[-1]
         n = self.material.getRefractiveIndex(ray.l)
         ng = self.material.getGroupRefractiveIndex(ray.l)
-
-        print "n0: ", n0
-        print "n: ", n
-
         # Transform to local coordinate system:       
         xLocal = np.dot(self.xpM, np.dot(self.xM, x))        
         xpLocal = np.dot(self.xpM, xp)
@@ -108,11 +104,13 @@ class Surface(object):
         
         xNewLocal = xLocal + t*xpLocal
         xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, n, n0)
-        xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))
+        xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))            
+        xNewEl = np.dot(xMTel, np.dot(np.transpose(xpMel),xNew))
         xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
+        xpNewEl = np.dot(np.transpose(xpMel), xpNew)
         
         if self.aperture.pointInAperture(xNewLocal) == True:
-            ray.addPos(xNew, xpNew, n, ng, 1.0, t)
+            ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
         
  
     def calculateLocalRefraction(self, x, xp, xn, n, n0):
@@ -131,6 +129,8 @@ class Surface(object):
         costh1 = np.dot(xn, xp)
         st1 = xp-costh1*xn
         cos2th2 = 1-n_r**2*(1-costh1**2)
+        
+        print "xNewLocal: ", x
         print "costh1: ", costh1
         print "cos2th2: ", cos2th2
         k2 = (1-cos2th2)/(np.dot(st1,st1)+1e-10)
@@ -161,6 +161,7 @@ class Surface(object):
         n_r = n0/self.n
         ndxp = -np.dot(xn, xp)
         sinth2 = n_r**2 * (1-ndxp**2)
+        print "-------------------"
         print "theta_i: ", np.arccos(ndxp)*180/np.pi
         print "theta_t: ", np.arcsin(np.sqrt(sinth2))*180/np.pi
         print "ndxp: ", ndxp
@@ -291,18 +292,16 @@ class SphericalSurface(Surface):
                 
         return (xNew, xpNew, nNew)
 
-    def findIntersectionRay(self, ray):
-        x = ray.x[-1]
-        xp = ray.xp[-1]
+    def findIntersectionRay(self, ray, xMel, xMTel, xpMel):
+        x = np.dot(xpMel, np.dot(xMel, ray.x[-1]))
+        xp = np.dot(xpMel, ray.xp[-1])
         n0 = ray.n[-1]
         n = self.material.getRefractiveIndex(ray.l)
         ng = self.material.getGroupRefractiveIndex(ray.l)
-
-        print "n0: ", n0
-        print "n: ", n
-        # Transform to local coordinate system:
-        xLocal = np.dot(self.xpM, np.dot(self.xM, x))
+        # Transform to local coordinate system:       
+        xLocal = np.dot(self.xpM, np.dot(self.xM, x))        
         xpLocal = np.dot(self.xpM, xp)
+        
         # Spherical surface
         # Intersection where xLocal + t*xpLocal crosses |x-xc|^2 = r^2
         # 
@@ -325,10 +324,12 @@ class SphericalSurface(Surface):
             xnLocal = xnLocal/np.sqrt(np.dot(xnLocal,xnLocal))
             
             xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, n, n0)
-            xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))
+            xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))            
+            xNewEl = np.dot(xMTel, np.dot(np.transpose(xpMel),xNew))
             xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
+            xpNewEl = np.dot(np.transpose(xpMel), xpNew)
             if self.aperture.pointInAperture(xNewLocal) == True:
-                ray.addPos(xNew, xpNew, n, ng, 1.0, t)
+                ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
         else:
             # No intersection
             xNew = None

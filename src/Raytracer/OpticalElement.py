@@ -9,14 +9,16 @@ import numpy as np
 import Raytracer.OpticalSurface as os
 import Raytracer.OpticalMaterial as om
 import Raytracer.OpticalAperture as oa
+import Raytracer.Ray as rr
 
 air = om.OpticalMaterial('air', [0.0002433468, 2.927321e-5], [0.00420135, 0.0174331])
                 
 class OpticalElement(object):
-    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,1,0]), xt = np.array([0,1,0,0]), n = 1.0, thickness = 1.0e-3, material = air):
+    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,1,0]), xt = np.array([0,1,0,0]), n = 1.0, thickness = 1.0e-3, material = air, size = 12.7e-3):
         self.n = n
         self.thickness = thickness
         self.material = material
+        self.size = size
         
         if x.shape[0] == 3:
             self.x = np.hstack((x,1))
@@ -30,14 +32,31 @@ class OpticalElement(object):
             self.xt = np.hstack((xt,0))
         else:
             self.xt = xt
-        self.initSurfaces()
+        self.generateTransformMatrix()
+        self.initSurfaces()        
         
     def setPosition(self, newPos):
         if newPos.shape[0] == 3:
             self.x = np.hstack((newPos,1))
         else:
             self.x = newPos
-        self.initSurfaces()
+        #self.initSurfaces()
+        self.generateTransformMatrix()
+
+    def generateTransformMatrix(self):
+        self.xM = np.array([[1.0, 0.0, 0.0, -self.x[0]], 
+                             [0.0, 1.0, 0.0, -self.x[1]],
+                             [0.0, 0.0, 1.0, -self.x[2]],
+                             [0.0, 0.0, 0.0, 1.0]])
+
+        self.xMT = np.array([[1.0, 0.0, 0.0, self.x[0]], 
+                             [0.0, 1.0, 0.0, self.x[1]],
+                             [0.0, 0.0, 1.0, self.x[2]],
+                             [0.0, 0.0, 0.0, 1.0]])
+                
+        # Third coordinate axis by cross product:
+        xt2 = np.hstack((np.cross(self.xt[0:3], self.xn[0:3]),0))
+        self.xpM = np.transpose(np.vstack((xt2, self.xt, self.xn, np.array([0,0,0,1]))))     
         
     def setRotation(self, theta, phi):
         thM = np.array([[1.0, 0.0,            0.0,           0.0], 
@@ -45,17 +64,18 @@ class OpticalElement(object):
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
                          [0.0, 0.0,            0.0,           1.0]])
          
-        phM = np.array([[+np.cos(phi), 0.0, np.sin(phi), 1.0], 
-                         [0.0,          1.0, 0.0,         1.0], 
-                         [-np.sin(phi), 0.0, np.cos(phi), 1.0],
+        phM = np.array([[+np.cos(phi), 0.0, np.sin(phi), 0.0], 
+                         [0.0,          1.0, 0.0,         0.0], 
+                         [-np.sin(phi), 0.0, np.cos(phi), 0.0],
                          [0.0,          0.0, 0.0,         1.0]])
          
-        xpM = np.dot(thM, phM)
-        self.xn = np.dot(xpM, self.xn)
-        self.xt = np.dot(xpM, self.xt)
+        self.xpM = np.dot(thM, phM)
+        self.xn = np.dot(self.xpM, self.xn)
+        self.xt = np.dot(self.xpM, self.xt)
         
-        for s in self.surfaces:
-            s.setRotationExternal(theta, phi)
+        
+#         for s in self.surfaces:
+#             s.setRotationExternal(theta, phi)
 
     def rotateElement(self, theta, phi):
         thM = np.array([[1.0, 0.0,            0.0,           0.0], 
@@ -63,22 +83,28 @@ class OpticalElement(object):
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
                          [0.0, 0.0,            0.0,           1.0]])
          
-        phM = np.array([[+np.cos(phi), 0.0, np.sin(phi), 1.0], 
-                         [0.0,          1.0, 0.0,         1.0], 
-                         [-np.sin(phi), 0.0, np.cos(phi), 1.0],
+        phM = np.array([[+np.cos(phi), 0.0, np.sin(phi), 0.0], 
+                         [0.0,          1.0, 0.0,         0.0], 
+                         [-np.sin(phi), 0.0, np.cos(phi), 0.0],
                          [0.0,          0.0, 0.0,         1.0]])
          
-        xpM = np.dot(thM, phM)
-        self.xn = np.dot(xpM, self.xn)
-        self.xt = np.dot(xpM, self.xt)
+        self.xpM = np.dot(self.xpM, np.dot(thM, phM))
+        self.xn = np.dot(self.xpM, self.xn)
+        self.xt = np.dot(self.xpM, self.xt)
         
-        for s in self.surfaces:
-            s.rotateExternal(theta, phi)
+#         for s in self.surfaces:
+#             s.rotateExternal(theta, phi)
             
     def flipElement(self):
+        nList = [surf.n for surf in self.surfaces]
+        nList.reverse()
+        matList = [surf.material for surf in self.surfaces]
+        matList.reverse()
+        for (ind, surf) in enumerate(self.surfaces):
+            surf.n = nList[ind]
+            surf.material = matList[ind]
         self.surfaces.reverse()
-        for surf in self.surfaces:
-            surf.rotateExternal(np.pi, 0)  
+        self.rotateElement(np.pi, 0)
         
     def setRotationMatrix(self, xpM):
         self.xn = np.dot(xpM, self.xn)
@@ -86,11 +112,18 @@ class OpticalElement(object):
         for s in self.surfaces:
             s.setRotationExternalMatrix(xpM)
         
+    def getEdges(self):
+        edges = []
+        for surf in self.surfaces:
+            xe = surf.getEdges()
+            edges.append(np.dot(self.xMT, np.dot(np.transpose(self.xpM), xe)))
+        return edges
+            
     def initSurfaces(self):
-        self.surfaces = [os.Surface(self.x, -self.xn, self.xt, self.n, material=self.material)]
-        x2 = self.x
-        x2[2] += self.thickness
-        self.surfaces.append(os.Surface(x2, self.xn, self.xt))
+        ap = oa.CircularAperture(self.size)
+        s1 = os.Surface(x=np.array([0,0,0,1]), xn=self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
+        s2 = os.Surface(x=np.array([0,0,self.thickness,1]), xn=self.xn, xt=self.xt, n=self.n, material=air, aperture=ap)
+        self.surfaces = [s1, s2]
 
     
     def propagateRays(self, rays):
@@ -101,7 +134,8 @@ class OpticalElement(object):
             for surf in self.surfaces:                
 #                n0 = ray.n[-1]
 #                (newX, newXp, newN) = surf.findIntersection(ray.x[-1], ray.xp[-1], n0)
-                surf.findIntersectionRay(ray)
+                print "--------------------------------"
+                surf.findIntersectionRay(ray, self.xM, self.xMT, self.xpM)
 #                ray.addPos(newX, newXp, newN, 1.0)
                 
 class PrismElement(OpticalElement):
@@ -131,15 +165,17 @@ class PCXElement(OpticalElement):
         
     def initSurfaces(self):
         ap = oa.CircularAperture(self.size)
-        s1 = os.SphericalSurface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, r=self.r1, material=self.material, aperture=ap)
-        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
-        s2.setPosition(self.x+np.array([0,0,self.thickness,0]))
+#        s1 = os.SphericalSurface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, r=self.r1, material=self.material, aperture=ap)
+        s1 = os.SphericalSurface(x=np.array([0,0,0,1]), xn=-self.xn, xt=self.xt, n=self.n, r=self.r1, material=self.material, aperture=ap)
+#        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
+        s2 = os.Surface(x=np.array([0,0,self.thickness,0]), xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
+#        s2.setPosition(self.x+np.array([0,0,self.thickness,0]))
         self.surfaces = [s1, s2]
         
 class ScreenElement(OpticalElement):
-    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,-1,0]), xt = np.array([0,1,0,0]), material = air):
-        super(ScreenElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material = material)
+    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,1,0]), xt = np.array([0,1,0,0]), material = air):
+        super(ScreenElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material = material, thickness = 0.0)
         
     def initSurfaces(self):
         ap = oa.InifiniteAperture()
-        self.surfaces = [os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)]
+        self.surfaces = [os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)]
