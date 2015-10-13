@@ -66,5 +66,8 @@ class Ray(object):
         mpl.figure(fig)
         x = np.array(self.x)
         mpl.plot(x[:,2], x[:,0], color=self.color)
+        
+    def getArrayPoints(self):
+        return np.array(self.x)
 
         

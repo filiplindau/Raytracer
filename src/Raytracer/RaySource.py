@@ -24,10 +24,15 @@ class RaySource(object):
             r = Ray.Ray()
             self.rays.append(r)
             
-    def drayRays(self, fig):
+    def drawRays(self, fig):
         for ray in self.rays:
             ray.drawRay(fig)
         
+    def getRayPoints(self):
+        points = []
+        for ray in self.rays:
+            points.append((ray.getArrayPoints(), ray.color))            
+        return points
         
 class Collimated1DSource(RaySource):
     def __init__(self, numRays = 1000, xDim = 1e-3, l = 567e-9, W = 1):

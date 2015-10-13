@@ -6,12 +6,13 @@ Created on 11 Oct 2015
 
 import numpy as np
 import OpticalMaterial as om
+import OpticalAperture as oa
 import Ray as r
 
 air = om.OpticalMaterial('air', [0.0002433468, 2.927321e-5], [0.00420135, 0.0174331])
 
 class Surface(object):
-    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,-1,0]), xt = np.array([0,1,0,0]), n = 1.0, material = air):
+    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,-1,0]), xt = np.array([0,1,0,0]), n = 1.0, material = air, aperture = oa.OpticalAperture(12.7e-3)):
         """ Basic surface. Implements functions for finding intersection with ray and coordinate transforms.
         
         Inputs:
@@ -19,6 +20,8 @@ class Surface(object):
         xn: Surface orientation (normal)
         xt: Surface orientation (tangent)
         n: Refractive index after passing surface (None if last surface in element)
+        material: Material after passing surface
+        aperture: size of the surface
         """
         self.x = x
         self.xn = xn / np.sqrt(np.dot(xn,xn))
@@ -27,6 +30,9 @@ class Surface(object):
         self.material = material
         self.xpMint = np.identity(4)
         self.generateTransformMatrix()
+        self.aperture = aperture
+        
+        self.generateSurfaceEdge()
           
     def generateTransformMatrix(self):
         self.xM = np.array([[1.0, 0.0, 0.0, -self.x[0]], 
@@ -104,8 +110,9 @@ class Surface(object):
         xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, n, n0)
         xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))
         xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
-
-        ray.addPos(xNew, xpNew, n, ng, 1.0, t)
+        
+        if self.aperture.pointInAperture(xNewLocal) == True:
+            ray.addPos(xNew, xpNew, n, ng, 1.0, t)
         
  
     def calculateLocalRefraction(self, x, xp, xn, n, n0):
@@ -217,10 +224,17 @@ class Surface(object):
         self.xpMint = np.dot(thM, phM)
         self.xpM = np.dot(self.xpMint, self.xpMext)
         
+    def generateSurfaceEdge(self):
+        self.surfaceEdge = self.aperture.getEdge()
+    
+    def getEdges(self):
+        se = np.dot(self.xMT, np.dot(np.transpose(self.xpM), self.surfaceEdge))
+        return se
+        
 class SphericalSurface(Surface):
-    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,-1,0]), xt = np.array([0,1,0,0]), n = 1.0, r = 1.0, material = air):
-        Surface.__init__(self, x = x, xn = xn, xt = xt, n = n, material = material)
+    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,-1,0]), xt = np.array([0,1,0,0]), n = 1.0, r = 1.0, material = air, aperture = oa.OpticalAperture(12.7e-3)):
         self.r = r
+        Surface.__init__(self, x = x, xn = xn, xt = xt, n = n, material = material, aperture=aperture)        
         
     def findIntersection(self, x, xp, n0=1.0):
         # Transform to local coordinate system:
@@ -313,11 +327,18 @@ class SphericalSurface(Surface):
             xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, n, n0)
             xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))
             xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
-            ray.addPos(xNew, xpNew, n, ng, 1.0, t)
+            if self.aperture.pointInAperture(xNewLocal) == True:
+                ray.addPos(xNew, xpNew, n, ng, 1.0, t)
         else:
             # No intersection
             xNew = None
             xpNew = None
             nNew = n0
                 
-        
+    def generateSurfaceEdge(self):
+        nbrPoints = 16
+        theta0 = np.arcsin(self.aperture.size/self.r)
+        theta = np.linspace(-theta0, theta0, nbrPoints)
+        xe = np.vstack((-self.r*np.sin(theta), np.zeros(nbrPoints), -self.r*(1-np.cos(theta)), np.ones(nbrPoints)))
+        ye = np.vstack((np.zeros(nbrPoints), -self.r*np.sin(theta), -self.r*(1-np.cos(theta)), np.ones(nbrPoints)))
+        self.surfaceEdge = (np.hstack((xe, ye)))

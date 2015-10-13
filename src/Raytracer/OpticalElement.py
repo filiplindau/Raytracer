@@ -8,6 +8,7 @@ import numpy as np
 
 import Raytracer.OpticalSurface as os
 import Raytracer.OpticalMaterial as om
+import Raytracer.OpticalAperture as oa
 
 air = om.OpticalMaterial('air', [0.0002433468, 2.927321e-5], [0.00420135, 0.0174331])
                 
@@ -73,6 +74,11 @@ class OpticalElement(object):
         
         for s in self.surfaces:
             s.rotateExternal(theta, phi)
+            
+    def flipElement(self):
+        self.surfaces.reverse()
+        for surf in self.surfaces:
+            surf.rotateExternal(np.pi, 0)  
         
     def setRotationMatrix(self, xpM):
         self.xn = np.dot(xpM, self.xn)
@@ -105,24 +111,28 @@ class PrismElement(OpticalElement):
         OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, material = material)
             
     def initSurfaces(self):
-        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material)
+        ap = oa.RectangularAperture([self.sideLength, self.sideLength])
+        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
         s1.setRotationInternal(0, self.apexAngle/2)
         s1Pos = self.x+np.array([0,0,-np.sin(self.apexAngle/2)*self.sideLength/2,0])
         s1.setPosition(s1Pos)
-        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air)
+        
+        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
         s2.setRotationInternal(0, -self.apexAngle/2)
         s2Pos = self.x+np.array([0,0,np.sin(self.apexAngle/2)*self.sideLength/2,0])
         s2.setPosition(s2Pos)
         self.surfaces = [s1, s2]
         
 class PCXElement(OpticalElement):
-    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,1,0]), xt = np.array([0,1,0,0]), n = 1.0, r = 1.0, thickness = 5e-3, material = air):
+    def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,1,0]), xt = np.array([0,1,0,0]), n = 1.0, r = 1.0, thickness = 5e-3, material = air, size = 12.7e-3):
         self.r1 = r
-        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, thickness=thickness, material = material)
+        self.size = size
+        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, thickness=thickness, material = material)        
         
     def initSurfaces(self):
-        s1 = os.SphericalSurface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, r=self.r1, material=self.material)
-        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air)
+        ap = oa.CircularAperture(self.size)
+        s1 = os.SphericalSurface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, r=self.r1, material=self.material, aperture=ap)
+        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
         s2.setPosition(self.x+np.array([0,0,self.thickness,0]))
         self.surfaces = [s1, s2]
         
@@ -131,4 +141,5 @@ class ScreenElement(OpticalElement):
         super(ScreenElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material = material)
         
     def initSurfaces(self):
-        self.surfaces = [os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=self.n, material=self.material)]
+        ap = oa.InifiniteAperture()
+        self.surfaces = [os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)]
