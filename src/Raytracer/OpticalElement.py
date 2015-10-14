@@ -127,16 +127,35 @@ class OpticalElement(object):
 
     
     def propagateRays(self, rays):
+        ''' Propagate rays using the new rays matrix
+        The rays are transformed to element local coordinates before 
+        being sent to the surfaces.
+        '''
+        print type(self)
+        # raysEl contains the rays transformed to element local coordinates
+        raysEl = rays.copy()
+        # raysGl contains the returned coordinates from a surface transformed back to global coordinates
+        raysGl = rays.copy()
+        raysGlList = []
+        raysEl[:,0,:] = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(rays[:,0,:]))))
+        raysEl[:,1,:] = np.transpose(np.dot(self.xpM, np.transpose(rays[:,1,:]))) 
+        for surf in self.surfaces:                
+            raysEl = surf.findIntersectionRays(raysEl)
+            raysGl[:,0,:] = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(rays[:,0,:]))))
+            raysGl[:,1,:] = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(rays[:,1,:]))) 
+            raysGlList.append(raysGl)
+        return raysGlList
+
+    def propagateRaysOld(self, rays):
+        ''' Propagate rays using the old rays structure (class with lists)
+        '''
         print type(self)
         for ray in rays:
             print ""
             print "=+=+=+=+ Ray  =+=+=+=+=+=+="
             for surf in self.surfaces:                
-#                n0 = ray.n[-1]
-#                (newX, newXp, newN) = surf.findIntersection(ray.x[-1], ray.xp[-1], n0)
                 print "--------------------------------"
                 surf.findIntersectionRay(ray, self.xM, self.xMT, self.xpM)
-#                ray.addPos(newX, newXp, newN, 1.0)
                 
 class PrismElement(OpticalElement):
     def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,1,0]), xt = np.array([0,1,0,0]), n = 1.0, apexAngle = 60*np.pi/180, sideLength = 25e-3, material = air):

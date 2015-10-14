@@ -7,7 +7,9 @@ Created on 9 Oct 2015
 import numpy as np
 import matplotlib.pyplot as mpl 
 
-class Ray(object):
+
+
+class RayStore(object):
     def __init__(self, x = np.array([0,0,0]), xp = np.array([0,0,1]), n = 1.0, l = 564e-9, W = 1.0, ng = 1.0, color = (0,0,0.85)):
         """ Initialize ray with position, direction, wavelength, and energy 
         
@@ -37,7 +39,7 @@ class Ray(object):
         
         self.color = color
         
-    def addPos(self, newX, newXp, newN, newNg=1.0, t = 1.0, distance = 0.0):
+    def addPos(self, newX, newXp, newN, newNg=1.0, t = 1.0, W=1.0, distance = 0.0):
         """ Add new node in the trace of the ray.
         
         Inputs
@@ -45,7 +47,7 @@ class Ray(object):
         newXp: New direction, 3 or 4 element numpy array
         newN: New refractive index
         t: Transmission, fraction of the energy remaining
-        
+        distance = length of ray segment
         """
         if newX.shape[0] == 3:
             newX = np.hstack((newX,1.0))

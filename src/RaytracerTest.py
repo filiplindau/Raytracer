@@ -12,7 +12,7 @@ import Raytracer.OpticalMaterial as om
 import Raytracer.OpticalAperture as oa
 import Raytracer.RaySource as rs
 import Raytracer.Ray as ry
-from Raytracer.Ray import Ray 
+from Raytracer.Ray import RayStore 
 import numpy as np
 import matplotlib.pyplot as mpl
 

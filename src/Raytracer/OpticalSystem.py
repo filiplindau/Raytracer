@@ -43,5 +43,11 @@ class OpticalSystem(object):
     def traceSystem(self):
         if self.raySourceList != []:
             for raySource in self.raySourceList:
-                for (ind, element) in enumerate(self.elements):                
-                    element.propagateRays(raySource.rays)
+                for (ind, element) in enumerate(self.elements):    
+                    raysT = raySource.rays.copy()
+                    raysT[:,1,:] = np.transpose(np.dot(self.opticalAxisM, np.transpose(raySource.rays[:,1,:])))        
+                    raysList = element.propagateRays(raysT)
+                    for rays in raysList:
+                        raysT = rays.copy()
+                        raysT[:,1,:] = np.transpose(np.dot(np.transpose(self.opticalAxisM), np.transpose(raySource.rays[:,1,:])))
+                        raySource.updateRays(raysT) 

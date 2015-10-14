@@ -112,7 +112,81 @@ class Surface(object):
         if self.aperture.pointInAperture(xNewLocal) == True:
             ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
         
- 
+    def findIntersectionRays(self, rays):
+        """ This is for intersection with a plane surface. Re-implement for new surface types. 
+        Needs to find ray intersection and surface normal.
+        
+        Using the new rays matrix
+        """
+        x = rays[:,0,:]
+        xp = rays[:,1,:]
+        data = rays[:,2,:]
+        n0 = rays[0,2,1] # Assume all rays have the same refractive index
+        l = rays[0,2,0] # Assume all rays have the same wavelength
+        n = self.material.getRefractiveIndex(l)
+        ng = self.material.getGroupRefractiveIndex(l)
+        data[:,2,1] = n
+        data[:,2,2] = ng
+        # Transform to local coordinate system:       
+        xLocal = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(x))))        
+        xpLocal = np.transpose(np.dot(self.xpM, np.transpose(xp)))
+        
+        # Plane surface
+        # Intersection where xLocal + t*xpLocal crosses z = 0
+        # Reimplement here
+        t = -xLocal[:,2]/xpLocal[:,2]        
+        xnLocal = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0])),(t.shape[0],4))
+        
+        xNewLocal = xLocal + np.transpose(np.multiply(np.transpose(xpLocal),t))
+        xpNewLocal = self.calculateLocalRefractions(xNewLocal, xpLocal, xnLocal, n, n0)
+        xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM),xNewLocal))            
+        xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
+        
+        rays[:,0,:] = xNew
+        rays[:,1,:] = xpNew
+        rays[:,2,1] = n
+        rays[:,2,2] = ng
+        return rays
+#        return np.dstack((xNew,xpNew,data)).swapaxes(1,2)
+        
+#         if self.aperture.pointInAperture(xNewLocal) == True:
+#             ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
+
+    def calculateLocalRefractions(self, x, xp, xn, n, n0):
+        """ Calculate refraction at surface for local coordinates x and
+        local direction xp. Returns new direction and refractive index. 
+        
+        Inputs:
+        x: Local coordinate for ray intersection
+        xp: Local coordinates for ray direction
+        xn: Local surface normal
+        n: refractive index in this material
+        n0: refractive index in previous material
+        """
+       
+        n_r = n0/n
+        costh1 = np.sum(np.multiply(xn, xp),1)
+        st1 = xp-np.transpose(np.multiply(np.transpose(xn),costh1))
+        cos2th2 = 1-n_r**2*(1-costh1**2)
+        
+#         print "xNewLocal: ", x
+#         print "costh1: ", costh1
+#         print "cos2th2: ", cos2th2
+        k2 = (1-cos2th2)/(np.sum(np.multiply(st1,st1),1)+1e-10)
+#        print "k2: ", k2
+#        if k2 >= 0:
+        xp2 = np.transpose(np.multiply(np.transpose(xn), np.sqrt(cos2th2)*np.sign(costh1))
+                               +np.multiply(np.transpose(st1), np.sqrt(k2)))
+#        else:
+#            xp2 = st1 - costh1*xn
+#         print "theta_i: ", np.arccos(costh1)*180/np.pi
+#         print "theta_t: ", np.arccos(np.sqrt(cos2th2))*180/np.pi
+#         print "n_r: ", n_r
+#         print "st1: ", st1
+#         print "cos(theta1)", costh1
+#         print "cos(theta2)", np.sqrt(cos2th2)
+        return xp2
+                
     def calculateLocalRefraction(self, x, xp, xn, n, n0):
         """ Calculate refraction at surface for local coordinates x and
         local direction xp. Returns new direction and refractive index. 
