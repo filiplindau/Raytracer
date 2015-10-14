@@ -146,14 +146,16 @@ class PrismElement(OpticalElement):
             
     def initSurfaces(self):
         ap = oa.RectangularAperture([self.sideLength, self.sideLength])
-        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
+#        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
+        s1 = os.Surface(x=np.array([0,0,0,1]), xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
         s1.setRotationInternal(0, self.apexAngle/2)
-        s1Pos = self.x+np.array([0,0,-np.sin(self.apexAngle/2)*self.sideLength/2,0])
+        s1Pos = np.array([0,0,-np.sin(self.apexAngle/2)*self.sideLength/2,1])
         s1.setPosition(s1Pos)
         
-        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
+#        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
+        s2 = os.Surface(x=np.array([0,0,0,1]), xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
         s2.setRotationInternal(0, -self.apexAngle/2)
-        s2Pos = self.x+np.array([0,0,np.sin(self.apexAngle/2)*self.sideLength/2,0])
+        s2Pos = np.array([0,0,np.sin(self.apexAngle/2)*self.sideLength/2,1])
         s2.setPosition(s2Pos)
         self.surfaces = [s1, s2]
         

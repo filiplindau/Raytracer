@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as mpl 
 
 class Ray(object):
-    def __init__(self, x = np.array([0,0,0]), xp = np.array([0,0,1]), n = 1.0, l = 564e-9, W = 1.0, ng = 1.0):
+    def __init__(self, x = np.array([0,0,0]), xp = np.array([0,0,1]), n = 1.0, l = 564e-9, W = 1.0, ng = 1.0, color = (0,0,0.85)):
         """ Initialize ray with position, direction, wavelength, and energy 
         
         Inputs 
@@ -35,7 +35,7 @@ class Ray(object):
         self.distance = [0.0]
         self.l = l
         
-        self.color = (0,0,0.85)
+        self.color = color
         
     def addPos(self, newX, newXp, newN, newNg=1.0, t = 1.0, distance = 0.0):
         """ Add new node in the trace of the ray.

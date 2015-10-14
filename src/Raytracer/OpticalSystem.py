@@ -11,7 +11,7 @@ import OpticalMaterial as om
 class OpticalSystem(object):
     def __init__(self):
         self.elements = []
-        self.raySource = None
+        self.raySourceList = []
         self.materialLibrary = om.MaterialLibrary()
         self.opticalAxisM = np.identity(4) 
         self.opticalAxisTheta = 0.0
@@ -37,10 +37,11 @@ class OpticalSystem(object):
         self.opticalAxisM = np.dot(thM, phM)
         
         
-    def setRaySource(self, raySource):
-        self.raySource = raySource
+    def addRaySource(self, raySource):
+        self.raySourceList.append(raySource)
         
     def traceSystem(self):
-        if self.raySource != None:
-            for (ind, element) in enumerate(self.elements):                
-                element.propagateRays(self.raySource.rays)
+        if self.raySourceList != []:
+            for raySource in self.raySourceList:
+                for (ind, element) in enumerate(self.elements):                
+                    element.propagateRays(raySource.rays)

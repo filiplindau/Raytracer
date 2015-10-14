@@ -130,21 +130,21 @@ class Surface(object):
         st1 = xp-costh1*xn
         cos2th2 = 1-n_r**2*(1-costh1**2)
         
-        print "xNewLocal: ", x
-        print "costh1: ", costh1
-        print "cos2th2: ", cos2th2
+#         print "xNewLocal: ", x
+#         print "costh1: ", costh1
+#         print "cos2th2: ", cos2th2
         k2 = (1-cos2th2)/(np.dot(st1,st1)+1e-10)
-        print "k2: ", k2
+#        print "k2: ", k2
         if k2 >= 0:
             xp2 = np.sqrt(cos2th2)*np.sign(costh1)*xn+np.sqrt(k2)*st1
         else:
             xp2 = st1 - costh1*xn
-        print "theta_i: ", np.arccos(costh1)*180/np.pi
-        print "theta_t: ", np.arccos(np.sqrt(cos2th2))*180/np.pi
-        print "n_r: ", n_r
-        print "st1: ", st1
-        print "cos(theta1)", costh1
-        print "cos(theta2)", np.sqrt(cos2th2)
+#         print "theta_i: ", np.arccos(costh1)*180/np.pi
+#         print "theta_t: ", np.arccos(np.sqrt(cos2th2))*180/np.pi
+#         print "n_r: ", n_r
+#         print "st1: ", st1
+#         print "cos(theta1)", costh1
+#         print "cos(theta2)", np.sqrt(cos2th2)
         return xp2
 
     def calculateLocalRefractionOld(self, x, xp, xn, n0):
@@ -231,6 +231,10 @@ class Surface(object):
     def getEdges(self):
         se = np.dot(self.xMT, np.dot(np.transpose(self.xpM), self.surfaceEdge))
         return se
+    
+    def getRayFootprint(self, ray):
+        xLocal = np.dot(self.xpM, np.dot(self.xM, ray.x))
+        return xLocal
         
 class SphericalSurface(Surface):
     def __init__(self, x = np.array([0,0,0,1]), xn = np.array([0,0,-1,0]), xt = np.array([0,1,0,0]), n = 1.0, r = 1.0, material = air, aperture = oa.OpticalAperture(12.7e-3)):

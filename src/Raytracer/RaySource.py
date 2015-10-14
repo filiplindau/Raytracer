@@ -35,7 +35,7 @@ class RaySource(object):
         return points
         
 class Collimated1DSource(RaySource):
-    def __init__(self, numRays = 1000, xDim = 1e-3, l = 567e-9, W = 1):
+    def __init__(self, numRays = 1000, xDim = 1e-3, l = 567e-9, W = 1, color = (0,0,0.85)):
         """ Defines an 1D ray source with a set of rays that can be traced. The rays
         are collimated in the z direction and initialized along the x axis with
         an extent of xDim.
@@ -46,16 +46,17 @@ class Collimated1DSource(RaySource):
         xDim: The rays are evenly spaced around -xDim/2, +xDim/2
         l: Wavelength
         W: Energy
-        
+        color: Drawing color of rays 
         """
         super(Collimated1DSource, self).__init__(numRays)
-        self.generateRays(xDim, l, W)
+        self.color = color
+        self.generateRays(xDim, l, W, color)
         
-    def generateRays(self, xDim = 5e-3, l = 567e-9, W = 1):
+    def generateRays(self, xDim = 5e-3, l = 567e-9, W = 1, color = (0,0,0.85)):
         self.rays = []
         for rn in range(self.numRays):
             x = np.array([xDim * (-0.5 + 1.0*rn/self.numRays), 0, 0, 1])
             xp = np.array([0,0,1,0])
             n = 1.0
-            r = Ray.Ray(x, xp, n, l, W)
+            r = Ray.Ray(x=x, xp=xp, n=n, l=l, W=W, color=color)
             self.rays.append(r)

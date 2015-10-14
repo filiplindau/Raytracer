@@ -74,8 +74,10 @@ class RectangularAperture(OpticalAperture):
         x1 = np.array([-self.x, self.y, 0, 1])
         x2 = np.array([self.x, self.y, 0, 1])
         x3 = np.array([self.x, -self.y, 0, 1])
-        x4 = np.array([-self.x, -self.y, 0, 1])
-        self.edge = np.array([x0, x1, x2, x3, x4])
+        x4 = np.array([-self.x, -self.y, 0, 1])        
+        self.edge = np.transpose(np.array([x0, x1, x2, x3, x4]))
+#        print "edge: ", self.edge
+#        raise ValueError
         
     def pointInAperture(self, x):
         if (np.abs(x[0]) < self.x) and (np.abs(x[1]) < self.y):
