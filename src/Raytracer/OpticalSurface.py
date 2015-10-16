@@ -143,6 +143,12 @@ class Surface(object):
         xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
         xpNew = np.transpose(np.dot(self.xpM, np.transpose(xpNewLocal)))
         
+        print "intersectInd: ", intersectInd
+        print "xLocal: ", xLocal[0, :]        
+        print "xNewLocal: ", xNewLocal[0, :]
+        print "xpLocal: ", xpLocal[0, :]
+        print "xpNewLocal: ", xpNewLocal
+        
         rays[intersectInd, 0, :] = xNew
         rays[intersectInd, 1, :] = xpNew
         rays[intersectInd, 2, 1] = n
@@ -294,8 +300,9 @@ class Surface(object):
                          [-np.sin(phi), 0.0, np.cos(phi), 0.0],
                          [0.0, 0.0, 0.0, 1.0]])
          
-        self.xpMint = np.dot(thM, phM)
-        self.xpM = np.dot(self.xpMint, self.xpMext)
+        self.xpMint = np.dot(self.xpMint, np.dot(thM, phM))
+#        self.xpM = np.dot(self.xpMint, self.xpMext)
+#        self.xpM = np.dot(self.xpM, np.dot(thM, phM))
         
     def generateSurfaceEdge(self):
         self.surfaceEdge = self.aperture.getEdge()
@@ -438,7 +445,6 @@ class SphericalSurface(Surface):
         
         xNewLocal = xLocal[sq2PosInd, :] + np.transpose(np.multiply(np.transpose(xpLocal[sq2PosInd, :]), t))
         intersectInd = self.aperture.pointInAperture(xNewLocal)
-        print "intersectInd: ", intersectInd
         xnLocal = xNewLocal[intersectInd, :] - xc[sq2PosInd, :][intersectInd, :]
         xnLocal = np.transpose(np.divide(np.transpose(xnLocal) , np.sqrt(np.sum(np.multiply(xnLocal, xnLocal), 1))))
         xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
@@ -452,12 +458,10 @@ class SphericalSurface(Surface):
 #        print "xpNewLocal: ", xpNewLocal
 #        print "xnLocal: ", xnLocal
 #        print "xp: ", xp
-        print "xpNew: ", xpNew
         rays[sq2PosInd[intersectInd], 0, :] = xNew
         rays[sq2PosInd[intersectInd], 1, :] = xpNew
         rays[sq2PosInd[intersectInd], 2, 1] = n
         rays[sq2PosInd[intersectInd], 2, 2] = ng
-        print rays[sq2PosInd, 1, :]
         return rays
 #        return np.dstack((xNew,xpNew,data)).swapaxes(1,2)
         

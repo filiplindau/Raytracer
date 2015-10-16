@@ -27,7 +27,7 @@ reload(optsurf)
 optSys = optsys.OpticalSystem()
 
 slab = oe.OpticalElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]), material=optSys.materialLibrary.getMaterial('fs'), size=12.7e-3)
-slab.setRotation(0, 0 * np.pi / 180)
+slab.setRotation(0, 33 * np.pi / 180)
 
 slab2 = oe.OpticalElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 300e-3]), material=optSys.materialLibrary.getMaterial('fs'), size=12.7e-3)
 slab2.setRotation(0, 0 * np.pi / 180)
@@ -36,8 +36,8 @@ prismMat = om.OpticalMaterial('n', [], [], 1.1)
 prismMat = optSys.materialLibrary.getMaterial('fs')
 prism = oe.PrismElement(x=np.array([0, 0, 50e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 
-prism.setPosition(np.array([-5e-3, 0, 50e-3, 1]))
-prism.setRotation(0, 0 * 23 * np.pi / 180)
+#prism.setPosition(np.array([-5e-3, 0, 50e-3, 1]))
+#prism.rotateElement(0, 23 * np.pi / 180)
 
 
 lens = oe.PCXElement(x=np.array([0, 0, 200e-3]), n=1.5, r=0.1, thickness=5e-3, material=optSys.materialLibrary.getMaterial('fs'), size=12.7e-3)
@@ -61,8 +61,8 @@ r2 = rs.Collimated1DSource(numRays=20, xDim=10e-3, l=264e-9, color=(0, 0.5, 0))
 optSys.addElement(prism)
 #optSys.rotateOpticalAxisAfterElement(0, 45 * np.pi / 180, 0)
 
-optSys.addElement(lens)
-optSys.addElement(lens2)
+#optSys.addElement(lens)
+#optSys.addElement(lens2)
 #optSys.addElement(prism2)
 optSys.addElement(screen)
 optSys.addRaySource(r1)
