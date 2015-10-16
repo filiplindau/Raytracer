@@ -138,14 +138,15 @@ class Surface(object):
         xnLocal = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0]), t.shape[0]), (t.shape[0], 4))
         
         xNewLocal = xLocal + np.transpose(np.multiply(np.transpose(xpLocal), t))
-        xpNewLocal = self.calculateLocalRefractions(xNewLocal, xpLocal, xnLocal, n, n0)
-        xNew = np.transpose(np.dot(self.xMT, np.dot(self.xpM, np.transpose(xNewLocal))))            
+        intersectInd = self.aperture.pointInAperture(xNewLocal)
+        xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[intersectInd, :], xnLocal[intersectInd, :], n, n0)
+        xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
         xpNew = np.transpose(np.dot(self.xpM, np.transpose(xpNewLocal)))
         
-        rays[:, 0, :] = xNew
-        rays[:, 1, :] = xpNew
-        rays[:, 2, 1] = n
-        rays[:, 2, 2] = ng
+        rays[intersectInd, 0, :] = xNew
+        rays[intersectInd, 1, :] = xpNew
+        rays[intersectInd, 2, 1] = n
+        rays[intersectInd, 2, 2] = ng
         return rays
 #        return np.dstack((xNew,xpNew,data)).swapaxes(1,2)
         
@@ -165,14 +166,10 @@ class Surface(object):
         """
        
         n_r = n0 / n
-        print "n_r: ", n_r
         costh1 = np.sum(np.multiply(xn, xp), 1)
         st1 = xp - np.transpose(np.multiply(np.transpose(xn), costh1))
         cos2th2 = 1 - n_r ** 2 * (1 - costh1 ** 2)
         
-        print "xNewLocal: ", x[0, :]
-        print "costh1: ", costh1
-        print "cos2th2: ", cos2th2
         k2 = (1 - cos2th2) / (np.sum(np.multiply(st1, st1), 1) + 1e-10)
 #        print "k2: ", k2
 #        if k2 >= 0:
@@ -304,7 +301,7 @@ class Surface(object):
         self.surfaceEdge = self.aperture.getEdge()
     
     def getEdges(self):
-        se = np.dot(self.xMT, np.dot(np.transpose(self.xpM), self.surfaceEdge))
+        se = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(self.surfaceEdge))))
         return se
     
     def getRayFootprint(self, ray):
@@ -320,7 +317,6 @@ class SphericalSurface(Surface):
         # Transform to local coordinate system:
         xLocal = np.dot(self.xpM, np.dot(self.xM, x))
         xpLocal = np.dot(self.xpM, xp)
-        print "xLocal first: ", xLocal
         # Spherical surface
         # Intersection where xLocal + t*xpLocal crosses |x-xc|^2 = r^2
         # 
@@ -342,27 +338,10 @@ class SphericalSurface(Surface):
             xnLocal = xNewLocal - np.array([0, 0, -self.r, 1])
             xnLocal = xnLocal / np.sqrt(np.dot(xnLocal, xnLocal))
             
-            print "=============================="
-            print "xnLocal find: ", xnLocal
-            print "b: ", b
-            print "c: ", c
-            
             xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, self.n, n0)
             xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM), xNewLocal))
             xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
             nNew = self.n
-            print "xp: ", xp
-            print "xpLocal: ", xpLocal
-            print "xpNewLocal: ", xpNewLocal
-            print "xpNew: ", xpNew
-            print "------------------------------"        
-            print "t: ", t
-            print "t1: ", t1
-            print "t2: ", t2
-            print "x: ", x
-            print "xLocal: ", xLocal
-            print "xNewLocal: ", xNewLocal 
-            print "xNew: ", xNew
         else:
             # No intersection
             xNew = None
@@ -458,10 +437,12 @@ class SphericalSurface(Surface):
         t[tNegInd] -= 2 * sq[tNegInd]
         
         xNewLocal = xLocal[sq2PosInd, :] + np.transpose(np.multiply(np.transpose(xpLocal[sq2PosInd, :]), t))
-        xnLocal = xNewLocal - xc[sq2PosInd, :]
+        intersectInd = self.aperture.pointInAperture(xNewLocal)
+        print "intersectInd: ", intersectInd
+        xnLocal = xNewLocal[intersectInd, :] - xc[sq2PosInd, :][intersectInd, :]
         xnLocal = np.transpose(np.divide(np.transpose(xnLocal) , np.sqrt(np.sum(np.multiply(xnLocal, xnLocal), 1))))
-        xpNewLocal = self.calculateLocalRefractions(xNewLocal, xpLocal[sq2PosInd, :], xnLocal, n, n0)
-        xNew = np.transpose(np.dot(self.xMT, np.dot(self.xpM, np.transpose(xNewLocal))))            
+        xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
+        xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
         xpNew = np.transpose(np.dot(self.xpM, np.transpose(xpNewLocal)))
         
 #        print "sq2PosInd: ", sq2PosInd.sum()
@@ -471,11 +452,12 @@ class SphericalSurface(Surface):
 #        print "xpNewLocal: ", xpNewLocal
 #        print "xnLocal: ", xnLocal
 #        print "xp: ", xp
-#        print "xpNew: ", xpNew
-        rays[sq2PosInd, 0, :] = xNew
-        rays[sq2PosInd, 1, :] = xpNew
-        rays[sq2PosInd, 2, 1] = n
-        rays[sq2PosInd, 2, 2] = ng
+        print "xpNew: ", xpNew
+        rays[sq2PosInd[intersectInd], 0, :] = xNew
+        rays[sq2PosInd[intersectInd], 1, :] = xpNew
+        rays[sq2PosInd[intersectInd], 2, 1] = n
+        rays[sq2PosInd[intersectInd], 2, 2] = ng
+        print rays[sq2PosInd, 1, :]
         return rays
 #        return np.dstack((xNew,xpNew,data)).swapaxes(1,2)
         
@@ -488,4 +470,4 @@ class SphericalSurface(Surface):
         theta = np.linspace(-theta0, theta0, nbrPoints)
         xe = np.vstack((-self.r * np.sin(theta), np.zeros(nbrPoints), -self.r * (1 - np.cos(theta)), np.ones(nbrPoints)))
         ye = np.vstack((np.zeros(nbrPoints), -self.r * np.sin(theta), -self.r * (1 - np.cos(theta)), np.ones(nbrPoints)))
-        self.surfaceEdge = (np.hstack((xe, ye)))
+        self.surfaceEdge = np.transpose(np.hstack((xe, ye)))

@@ -116,7 +116,7 @@ class OpticalElement(object):
         edges = []
         for surf in self.surfaces:
             xe = surf.getEdges()
-            edges.append(np.dot(self.xMT, np.dot(np.transpose(self.xpM), xe)))
+            edges.append(np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xe)))))
         return edges
             
     def initSurfaces(self):
@@ -139,16 +139,16 @@ class OpticalElement(object):
         raysGlList = []
         raysEl[:, 0, :] = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(rays[:, 0, :]))))
         raysEl[:, 1, :] = np.transpose(np.dot(self.xpM, np.transpose(rays[:, 1, :])))
-        print "raysEl in: ", raysEl[0, 1, :]
-        print "raysGl in: ", raysGl[0, 1, :]
+#        print "raysEl in: ", raysEl[0, 1, :]
+#        print "raysGl in: ", raysGl[0, 1, :]
         for surf in self.surfaces:                            
             raysEl = surf.findIntersectionRays(raysEl)
-            print "raysEl: ", raysEl[0, 1, :]
+#            print "raysEl: ", raysEl[0, 1, :]
             raysGlNew = raysGl.copy()
             raysGlNew[:, 0, :] = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 0, :]))))
             raysGlNew[:, 1, :] = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 1, :]))) 
             raysGlList.append(raysGlNew)
-            print "raysGl new: ", raysGlNew[0, 1, :]
+#            print "raysGl new: ", raysGlNew[0, 1, :]
         return raysGlList
 
     def propagateRaysOld(self, rays):
@@ -171,7 +171,7 @@ class PrismElement(OpticalElement):
     def initSurfaces(self):
         ap = oa.RectangularAperture([self.sideLength, self.sideLength])
 #        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
-        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn= -self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
+        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
         s1.setRotationInternal(0, self.apexAngle / 2)
         s1Pos = np.array([0, 0, -np.sin(self.apexAngle / 2) * self.sideLength / 2, 1])
         s1.setPosition(s1Pos)

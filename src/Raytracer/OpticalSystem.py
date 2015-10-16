@@ -13,14 +13,29 @@ class OpticalSystem(object):
         self.elements = []
         self.raySourceList = []
         self.materialLibrary = om.MaterialLibrary()
-        self.opticalAxisM = [np.identity(4)] 
+        self.opticalAxisXpM = [np.identity(4)] 
+        self.opticalAxisXM = [np.identity(4)]
+        self.opticalAxisXMT = [np.identity(4)]
         self.opticalAxisTheta = 0.0
         self.opticalAxisPhi = 0.0
         
     def addElement(self, element):
-        element.rotateElement(self.opticalAxisTheta, self.opticalAxisPhi)
+#        element.rotateElement(self.opticalAxisTheta, self.opticalAxisPhi)
         self.elements.append(element)
-        self.opticalAxisM.append(self.opticalAxisM[-1].copy())
+        x = element.x
+        self.opticalAxisXpM.append(self.opticalAxisXpM[-1].copy())
+        
+        self.opticalAxisXM.append(np.array([[1.0, 0.0, 0.0, -x[0]],
+                             [0.0, 1.0, 0.0, -x[1]],
+                             [0.0, 0.0, 1.0, -x[2]],
+                             [0.0, 0.0, 0.0, 1.0]]))
+
+        self.opticalAxisXMT.append(np.array([[1.0, 0.0, 0.0, x[0]],
+                             [0.0, 1.0, 0.0, x[1]],
+                             [0.0, 0.0, 1.0, x[2]],
+                             [0.0, 0.0, 0.0, 1.0]]))
+#        self.opticalAxisXM.append(np.identity(4))
+#        self.opticalAxisXMT.append(np.identity(4))
         
     def rotateOpticalAxisAfterElement(self, theta, phi, elementNumber):
         self.opticalAxisTheta = theta
@@ -35,7 +50,7 @@ class OpticalSystem(object):
                          [-np.sin(phi), 0.0, np.cos(phi), 0.0],
                          [0.0, 0.0, 0.0, 1.0]])
          
-        self.opticalAxisM[elementNumber + 1] = np.dot(self.opticalAxisM[elementNumber + 1], np.dot(thM, phM))
+        self.opticalAxisXpM[elementNumber + 1] = np.dot(self.opticalAxisXpM[elementNumber + 1], np.dot(thM, phM))
         
         
     def addRaySource(self, raySource):
@@ -43,17 +58,27 @@ class OpticalSystem(object):
         
     def traceSystem(self):
         print "Optical axis: "
-        print self.opticalAxisM[-1]
+        print self.opticalAxisXM[-1]
         if self.raySourceList != []:
             for raySource in self.raySourceList:
                 for (ind, element) in enumerate(self.elements):    
                     raysT = raySource.rays.copy()
-                    print "raysT before: ", raysT[0, 1, :]
-                    raysT[:, 1, :] = np.transpose(np.dot(self.opticalAxisM[ind], np.transpose(raySource.rays[:, 1, :])))        
+#                    print "raysT before: ", raysT[0, 1, :]
+                    raysT[:, 0, :] = np.transpose(np.dot(self.opticalAxisXpM[ind], np.dot(self.opticalAxisXM[ind], np.transpose(raysT[:, 0, :]))))
+                    raysT[:, 1, :] = np.transpose(np.dot(self.opticalAxisXpM[ind], np.transpose(raysT[:, 1, :])))        
                     raysList = element.propagateRays(raysT)
                     for rays in raysList:
                         raysT = rays.copy()
-                        print "raysT prop: ", raysT[0, 1, :]
-                        raysT[:, 1, :] = np.transpose(np.dot(np.transpose(self.opticalAxisM[ind]), np.transpose(raysT[:, 1, :])))
-                        print "raysT after: ", raysT[0, 1, :]
+#                        print "raysT prop: ", raysT[0, 1, :]
+                        raysT[:, 0, :] = np.transpose(np.dot(self.opticalAxisXMT[ind], np.dot(np.transpose(self.opticalAxisXpM[ind]), np.transpose(raysT[:, 0, :]))))
+                        raysT[:, 1, :] = np.transpose(np.dot(np.transpose(self.opticalAxisXpM[ind]), np.transpose(raysT[:, 1, :])))
+#                        print "raysT after: ", raysT[0, 1, :]
                         raySource.updateRays(raysT) 
+
+    def getElementEdges(self, elementNumber):
+        edges = self.elements[elementNumber].getEdges()
+        edgesNew = []
+        for edge in edges:
+            edgesNew.append(np.transpose(np.dot(self.opticalAxisXMT[elementNumber],
+                                       np.dot(np.transpose(self.opticalAxisXpM[elementNumber]), np.transpose(edge)))))
+        return edgesNew
