@@ -37,7 +37,7 @@ prismMat = optSys.materialLibrary.getMaterial('fs')
 prism = oe.PrismElement(x=np.array([0, 0, 50e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 
 #prism.setPosition(np.array([-5e-3, 0, 50e-3, 1]))
-#prism.rotateElement(0, 23 * np.pi / 180)
+prism.rotateElement(0, 22 * np.pi / 180)
 
 
 lens = oe.PCXElement(x=np.array([0, 0, 200e-3]), n=1.5, r=0.1, thickness=5e-3, material=optSys.materialLibrary.getMaterial('fs'), size=12.7e-3)
@@ -49,7 +49,7 @@ lens2.flipElement()
 prism2 = oe.PrismElement(x=np.array([-605e-3, 0, 715e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 prism2.rotateElement(0, 2 * 25 * np.pi / 180)
 
-screen = oe.ScreenElement(x=np.array([0, 0, 800e-3]))
+screen = oe.ScreenElement(x=np.array([0, 0, 300e-3]))
 screen.rotateElement(0, 0 * np.pi / 180)
 
 r1 = rs.Collimated1DSource(numRays=3, xDim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
@@ -59,10 +59,10 @@ r2 = rs.Collimated1DSource(numRays=20, xDim=10e-3, l=264e-9, color=(0, 0.5, 0))
 #optSys.rotateOpticalAxisAfterElement(0, -10 * np.pi / 180, 0)
 #optSys.addElement(slab2)
 optSys.addElement(prism)
-#optSys.rotateOpticalAxisAfterElement(0, 45 * np.pi / 180, 0)
+optSys.rotateOpticalAxisAfterElement(0, 35.7 * np.pi / 180, 0)
 
-#optSys.addElement(lens)
-#optSys.addElement(lens2)
+optSys.addElement(lens)
+optSys.addElement(lens2)
 #optSys.addElement(prism2)
 optSys.addElement(screen)
 optSys.addRaySource(r1)
@@ -83,7 +83,7 @@ for raySource in optSys.raySourceList:
     p = raySource.getRayPoints()
     for rayP in p:
         mpl.plot(rayP[0][:, 2], rayP[0][:, 0], color=rayP[1])
-#mpl.axis('equal')
+mpl.axis('equal')
 mpl.grid()
 mpl.draw()
 mpl.show()

@@ -29,8 +29,12 @@ class Surface(object):
         self.n = n
         self.material = material
         self.xpMint = np.identity(4)
+        self.xpM = np.identity(4)
         self.generateTransformMatrix()
         self.aperture = aperture
+
+        xt2 = np.hstack((np.cross(self.xt[0:3], self.xn[0:3]), 0))
+        self.xpM = np.transpose(np.vstack((xt2, self.xt, self.xn, np.array([0, 0, 0, 1]))))        
         
         self.generateSurfaceEdge()
           
@@ -46,9 +50,7 @@ class Surface(object):
                              [0.0, 0.0, 0.0, 1.0]])
                 
         # Third coordinate axis by cross product:
-        xt2 = np.hstack((np.cross(self.xt[0:3], self.xn[0:3]), 0))
-        self.xpMext = np.transpose(np.vstack((xt2, self.xt, self.xn, np.array([0, 0, 0, 1]))))        
-        self.xpM = np.dot(self.xpMint, self.xpMext)
+#        self.xpM = np.dot(self.xpMint, self.xpMext)
      
     def findIntersection(self, x, xp, n0=1.0):
         """ This is for intersection with a plane surface. Reimplement for new surface types. 
@@ -141,7 +143,7 @@ class Surface(object):
         intersectInd = self.aperture.pointInAperture(xNewLocal)
         xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[intersectInd, :], xnLocal[intersectInd, :], n, n0)
         xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
-        xpNew = np.transpose(np.dot(self.xpM, np.transpose(xpNewLocal)))
+        xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
         
         print "intersectInd: ", intersectInd
         print "xLocal: ", xLocal[0, :]        
@@ -269,7 +271,7 @@ class Surface(object):
                          [0.0, 0.0, 0.0, 1.0]])
          
         self.xpMext = np.dot(thM, phM)
-        self.xpM = np.dot(self.xpMint, self.xpMext)
+#        self.xpM = np.dot(self.xpMint, self.xpMext)
         
     def rotateExternal(self, theta, phi):
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
@@ -283,11 +285,11 @@ class Surface(object):
                          [0.0, 0.0, 0.0, 1.0]])
          
         self.xpMext = np.dot(np.dot(thM, phM), self.xpMext)
-        self.xpM = np.dot(self.xpMint, self.xpMext)
+#        self.xpM = np.dot(self.xpMint, self.xpMext)
         
     def setRotationExternalMatrix(self, xpMext):          
         self.xpMext = xpMext
-        self.xpM = np.dot(self.xpMint, self.xpMext)
+#        self.xpM = np.dot(self.xpMint, self.xpMext)
                 
     def setRotationInternal(self, theta, phi):
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
@@ -302,7 +304,7 @@ class Surface(object):
          
         self.xpMint = np.dot(self.xpMint, np.dot(thM, phM))
 #        self.xpM = np.dot(self.xpMint, self.xpMext)
-#        self.xpM = np.dot(self.xpM, np.dot(thM, phM))
+        self.xpM = np.dot(self.xpM, np.dot(thM, phM))
         
     def generateSurfaceEdge(self):
         self.surfaceEdge = self.aperture.getEdge()
@@ -449,7 +451,7 @@ class SphericalSurface(Surface):
         xnLocal = np.transpose(np.divide(np.transpose(xnLocal) , np.sqrt(np.sum(np.multiply(xnLocal, xnLocal), 1))))
         xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
         xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
-        xpNew = np.transpose(np.dot(self.xpM, np.transpose(xpNewLocal)))
+        xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
         
 #        print "sq2PosInd: ", sq2PosInd.sum()
 #        print "tNegInd: ", tNegInd
