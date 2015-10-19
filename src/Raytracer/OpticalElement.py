@@ -131,7 +131,6 @@ class OpticalElement(object):
         The rays are transformed to element local coordinates before 
         being sent to the surfaces.
         '''
-        print type(self)
         # raysEl contains the rays transformed to element local coordinates
         raysEl = rays.copy()
         # raysGl contains the returned coordinates from a surface transformed back to global coordinates
@@ -150,11 +149,14 @@ class OpticalElement(object):
             raysGlList.append(raysGlNew)
 #            print "raysGl new: ", raysGlNew[0, 1, :]
         return raysGlList
+    
+    def getRaysFootprint(self, rays, surfaceNumber):
+        raysT = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(rays))))
+        return self.surfaces[surfaceNumber].getRaysFootprint(raysT)
 
     def propagateRaysOld(self, rays):
         ''' Propagate rays using the old rays structure (class with lists)
         '''
-        print type(self)
         for ray in rays:
             print ""
             print "=+=+=+=+ Ray  =+=+=+=+=+=+="

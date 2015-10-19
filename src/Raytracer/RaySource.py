@@ -21,19 +21,32 @@ class RaySource(object):
         self.rayStoreList = []
         
     def generateRays(self):
-        for rn in range(self.numRays):
-            r = Ray.Ray()
-            self.rays.append(r)
-            
+        ''' Reimplement in subclass
+        '''
+        pass
+        
     def drawRays(self, fig):
         for ray in self.rays:
             ray.drawRay(fig)
         
     def getRayPoints(self):
+        ''' Get list of points including color to draw
+        '''
         points = []
         for rayStore in self.rayStoreList:
             points.append((rayStore.getArrayPoints(), rayStore.color))            
         return points
+    
+    def getRaysPosArray(self):
+        ''' Get array with ray coordinates. Used for computing.
+        '''
+        return np.array([rl.x for rl in self.rayStoreList])
+    
+    def getRaysTimeOnSurface(self, surfaceNumber):
+        ''' Get array of group arrival time for the selected surface.
+        Use -1 for last surface.
+        '''
+        return np.array([rl.time[surfaceNumber] for rl in self.rayStoreList])
         
 class Collimated1DSource(RaySource):
     def __init__(self, numRays=1000, xDim=1e-3, l=567e-9, W=1, color=(0, 0, 0.85)):

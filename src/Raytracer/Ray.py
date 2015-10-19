@@ -35,6 +35,7 @@ class RayStore(object):
         self.n = [n]
         self.ng = [ng]
         self.distance = [0.0]
+        self.time = [0.0]
         self.l = l
         
         self.color = color
@@ -62,7 +63,8 @@ class RayStore(object):
         self.W.append(self.W[-1]*t)
         self.n.append(newN)
         self.ng.append(newNg)
-        self.distance.append(self.distance[-1] + distance*newNg)
+        self.distance.append(distance)
+        self.time.append(self.time[-1] + distance*newNg/299792458.0)
         
     def drawRay(self, fig):
         mpl.figure(fig)
@@ -71,5 +73,6 @@ class RayStore(object):
         
     def getArrayPoints(self):
         return np.array(self.x)
+    
 
         

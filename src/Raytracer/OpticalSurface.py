@@ -145,11 +145,11 @@ class Surface(object):
         xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
         xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
         
-        print "intersectInd: ", intersectInd
-        print "xLocal: ", xLocal[0, :]        
-        print "xNewLocal: ", xNewLocal[0, :]
-        print "xpLocal: ", xpLocal[0, :]
-        print "xpNewLocal: ", xpNewLocal
+#         print "intersectInd: ", intersectInd
+#         print "xLocal: ", xLocal[0, :]        
+#         print "xNewLocal: ", xNewLocal[0, :]
+#         print "xpLocal: ", xpLocal[0, :]
+#         print "xpNewLocal: ", xpNewLocal
         
         rays[intersectInd, 0, :] = xNew
         rays[intersectInd, 1, :] = xpNew
@@ -313,8 +313,8 @@ class Surface(object):
         se = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(self.surfaceEdge))))
         return se
     
-    def getRayFootprint(self, ray):
-        xLocal = np.dot(self.xpM, np.dot(self.xM, ray.x))
+    def getRaysFootprint(self, rays):
+        xLocal = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(rays))))
         return xLocal
         
 class SphericalSurface(Surface):

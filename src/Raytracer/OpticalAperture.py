@@ -63,7 +63,6 @@ class RectangularAperture(OpticalAperture):
         self.x = size[0] / 2
         self.y = size[1] / 2
         self.absorb = absorb
-        print "x, y: ", self.x, self.y
         OpticalAperture.__init__(self, size, absorb)
 
     def generateEdge(self):
