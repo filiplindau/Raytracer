@@ -26,31 +26,41 @@ reload(optsurf)
 
 optSys = optsys.OpticalSystem()
 
+devAngle = 42.73*np.pi/180
+prismAngle = 20.4*np.pi/180
+
+prism1Insert = 0e-3
+prism2Insert = 0e-3
+prism3Insert = 0e-3
+prism4Insert = 0e-3
+
+prismOffset = 14e-3
+
 prismMat = optSys.materialLibrary.getMaterial('fs')
 prism = oe.PrismElement(x=np.array([0, 0, 50e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 
-prism.setPosition(np.array([-5e-3, 0, 200e-3, 1]))
-prism.rotateElement(0, 23 * np.pi / 180)
+prism.setPosition(np.array([-prismOffset + prism1Insert, 0, 200e-3, 1]))
+prism.rotateElement(0, prismAngle)
 
-prism2 = oe.PrismElement(x=np.array([5e-3, 0, 1000e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
+prism2 = oe.PrismElement(x=np.array([prismOffset + 9e-3 - prism2Insert, 0, 1200e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 prism2.reverseElement()
-prism2.rotateElement(0, 165 * np.pi / 180)
+prism2.rotateElement(0, np.pi-prismAngle)
 
-prism3 = oe.PrismElement(x=np.array([5e-3, 0, 200e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
+prism3 = oe.PrismElement(x=np.array([prismOffset + 3e-3 - prism3Insert, 0, 200e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 prism3.reverseElement()
-prism3.rotateElement(0, 165 * np.pi / 180)
+prism3.rotateElement(0, np.pi-prismAngle)
 
-prism4 = oe.PrismElement(x=np.array([15e-3, 0, 1000e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
+prism4 = oe.PrismElement(x=np.array([-prismOffset -8e-3 + prism4Insert, 0, 1200e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
 #prism4.reverseElement()
-prism4.rotateElement(0, 23 * np.pi / 180)
+prism4.rotateElement(0, prismAngle)
 
 screen = oe.ScreenElement(x=np.array([0, 0, 400e-3]))
 screen.rotateElement(0, 0 * np.pi / 180)
 
-r1 = rs.Collimated1DSource(numRays=20, xDim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
-r2 = rs.Collimated1DSource(numRays=20, xDim=10e-3, l=264e-9, color=(0, 0.5, 0))
+r1 = rs.Collimated1DSource(numRays=5, xDim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
+r2 = rs.Collimated1DSource(numRays=5, xDim=10e-3, l=264e-9, color=(0, 0.5, 0))
 
-axRot = 42.7 * np.pi / 180
+axRot = devAngle
 optSys.addElement(prism)
 optSys.rotateOpticalAxisAfterElement(0, axRot, 0)
 optSys.addElement(prism2)
@@ -63,9 +73,7 @@ optSys.addElement(screen)
 optSys.addRaySource(r1)
 optSys.addRaySource(r2)
 print "raytracing..."
-t0 = time.clock()
 optSys.traceSystem()
-print time.clock() - t0
 
 # Draw trace:
 fig = mpl.figure(1)
