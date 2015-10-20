@@ -106,6 +106,16 @@ class OpticalElement(object):
         self.surfaces.reverse()
         self.rotateElement(np.pi, 0)
         
+    def reverseElement(self):
+        nList = [surf.n for surf in self.surfaces]
+        nList.reverse()
+        matList = [surf.material for surf in self.surfaces]
+        matList.reverse()
+        for (ind, surf) in enumerate(self.surfaces):
+            surf.n = nList[ind]
+            surf.material = matList[ind]
+        self.surfaces.reverse()
+
     def setRotationMatrix(self, xpM):
         self.xn = np.dot(xpM, self.xn)
         self.xt = np.dot(xpM, self.xt)
@@ -143,7 +153,7 @@ class OpticalElement(object):
         for surf in self.surfaces:                            
             raysEl = surf.findIntersectionRays(raysEl)
 #            print "raysEl: ", raysEl[0, 1, :]
-            raysGlNew = raysGl.copy()
+            raysGlNew = raysEl.copy()
             raysGlNew[:, 0, :] = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 0, :]))))
             raysGlNew[:, 1, :] = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 1, :]))) 
             raysGlList.append(raysGlNew)
@@ -173,7 +183,7 @@ class PrismElement(OpticalElement):
     def initSurfaces(self):
         ap = oa.RectangularAperture([self.sideLength, self.sideLength])
 #        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
-        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
+        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn= -self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
         s1.setRotationInternal(0, self.apexAngle / 2)
         s1Pos = np.array([0, 0, -np.sin(self.apexAngle / 2) * self.sideLength / 2, 1])
         s1.setPosition(s1Pos)

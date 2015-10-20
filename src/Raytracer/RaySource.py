@@ -101,7 +101,7 @@ class Collimated1DSource(RaySource):
         ''' Update ray data with new rays (in global coordinates)
         Sets rays matrix to newRays matrix and updates the RayStoresList
         '''
-        d = np.sqrt(np.sum((newRays[:, 0, 0:3] - self.rays[:, 0, 0:3]) ** 2))
+        d = np.sqrt(np.sum((newRays[:, 0, 0:3] - self.rays[:, 0, 0:3]) ** 2, 1))
         self.rays = newRays
         for rn in range(self.numRays):
             x = self.rays[rn, 0, :]
@@ -110,5 +110,5 @@ class Collimated1DSource(RaySource):
             n = self.rays[rn, 2, 1]
             ng = self.rays[rn, 2, 2]
             W = self.rays[rn, 2, 3]
-            self.rayStoreList[rn].addPos(newX=x, newXp=xp, newN=n, newNg=ng, W=W, distance=d)
+            self.rayStoreList[rn].addPos(newX=x, newXp=xp, newN=n, newNg=ng, W=W, distance=d[rn])
             
