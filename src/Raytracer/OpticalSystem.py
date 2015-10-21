@@ -32,7 +32,7 @@ class OpticalSystem(object):
 #        self.opticalAxisXM.append(self.opticalAxisXM[-1].copy())
 #        self.opticalAxisXMT.append(self.opticalAxisXMT[-1].copy())
         
-        xg  = np.dot(self.opticalAxisXMT[-1], np.dot(np.transpose(self.opticalAxisXpM[-1]), np.array([0,0,x[2],1])))
+        xg = np.dot(self.opticalAxisXMT[-1], np.dot(np.transpose(self.opticalAxisXpM[-1]), np.array([0, 0, x[2], 1])))
 #        xg  = np.dot(np.identity(4), np.dot(self.opticalAxisXMT[-1], np.array([0,0,x[2],1])))
 #        self.opticalAxisXM.append(np.identity(4))
 #        self.opticalAxisXMT.append(np.identity(4))
@@ -48,6 +48,25 @@ class OpticalSystem(object):
         
         self.opticalAxisXM.append(newXM)
         self.opticalAxisXMT.append(newXMT)
+        
+    def setOpticalAxisPos(self, elementNumber):
+        x = self.elements[elementNumber].x
+#        self.opticalAxisXpM.append(self.opticalAxisXpM[-1].copy())
+        
+        xg = np.dot(self.opticalAxisXMT[elementNumber], np.dot(np.transpose(self.opticalAxisXpM[elementNumber]), np.array([0, 0, x[2], 1])))
+        newXM = np.array([[1.0, 0.0, 0.0, -xg[0]],
+                             [0.0, 1.0, 0.0, -xg[1]],
+                             [0.0, 0.0, 1.0, -xg[2]],
+                             [0.0, 0.0, 0.0, 1.0]])
+
+        newXMT = np.array([[1.0, 0.0, 0.0, xg[0]],
+                             [0.0, 1.0, 0.0, xg[1]],
+                             [0.0, 0.0, 1.0, xg[2]],
+                             [0.0, 0.0, 0.0, 1.0]])
+        
+        self.opticalAxisXM[elementNumber + 1] = newXM
+        self.opticalAxisXMT[elementNumber + 1] = newXMT
+        
         
     def rotateOpticalAxisAfterElement(self, theta, phi, elementNumber):
         self.opticalAxisTheta = theta
