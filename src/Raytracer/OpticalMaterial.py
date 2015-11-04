@@ -8,7 +8,7 @@ import numpy as np
 
 class OpticalMaterial(object):
     def __init__(self, name, sellmeierBList, sellmeierCList, n0=1.0):
-        ''' A new material defined by the sellmeier coefficients B and C.
+        ''' A new material defined by the list of sellmeier coefficients B and C.
         Note that the coefficients should be for a wavelength in um (as is
         customary), but the refractive index is then calculated for a wavelength
         in m.
@@ -57,8 +57,9 @@ class MaterialLibrary(object):
         self.materials['caf2'] = caf2
         sf11 = OpticalMaterial('sf11', [1.73759695, 0.313747346, 1.89878101], [0.013188707, 0.0623068142, 155.23629])
         self.materials['sf11'] = sf11
-        sf11 = OpticalMaterial('sapphire', [1.023798, 1.058264, 5.280792], [0.06144821, 0.1106997, 17.92656])
-        self.materials['sapphire'] = sf11
+        sapphire = OpticalMaterial('sapphire', [1.023798, 1.058264, 5.280792], [0.06144821**2, 0.1106997**2, 17.92656**2])
+#        sapphire = OpticalMaterial('sapphire', [1.4313493, 0.65054713, 5.3414021], [0.07266309999, 0.119324200, 18.02825100])
+        self.materials['sapphire'] = sapphire
         n = OpticalMaterial('n', [], [], 1.5)
         self.materials['n'] = n
         

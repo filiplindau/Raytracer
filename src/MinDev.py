@@ -16,10 +16,19 @@ import numpy as np
 import matplotlib.pyplot as mpl
 import time
 
+reload(oa)
+reload(om)
+reload(oe)
+reload(rs)
+reload(ry)
+reload(optsys)
+reload(optsurf)
+
 optSys = optsys.OpticalSystem()
 
-prismMat = optSys.materialLibrary.getMaterial('fs')
-prism = oe.PrismElement(x=np.array([0, 0, 50e-3]), n=1.5, apexAngle=65 * np.pi / 180, sideLength=50e-3, material=prismMat)
+apex = 58 * np.pi / 180
+prismMat = optSys.materialLibrary.getMaterial('sapphire')
+prism = oe.PrismElement(x=np.array([0, 0, 50e-3]), n=1.5, apexAngle=apex, sideLength=50e-3, material=prismMat)
 
 prism.setPosition(np.array([-10e-3, 0, 200e-3, 1]))
 
@@ -33,9 +42,13 @@ optSys.addElement(screen)
 #optSys.addRaySource(r1)
 print "raytracing..."
 dev = []
-prism.rotateElement(0, 17 * np.pi / 180)
-for theta in np.arange(17,23,0.1):
-    prism.rotateElement(0, 0.1 * np.pi / 180)
+
+theta_step = 0.1
+theta = np.arange(0,45,theta_step)
+
+prism.rotateElement(0, np.min(theta) * np.pi / 180)
+for th in theta:
+    prism.rotateElement(0, theta_step * np.pi / 180)
     r1 = rs.Collimated1DSource(numRays=20, xDim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
     optSys.raySourceList=[r1]
     optSys.traceSystem()
@@ -59,4 +72,9 @@ mpl.grid()
 mpl.draw()
 mpl.show()
 
-theta = np.arange(17,23,0.1)
+fig = mpl.figure(2)
+mpl.clf()
+mpl.plot(theta, dev)
+mpl.grid()
+mpl.draw()
+mpl.show()
