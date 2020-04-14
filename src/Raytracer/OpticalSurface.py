@@ -5,14 +5,18 @@ Created on 11 Oct 2015
 '''
 
 import numpy as np
-import OpticalMaterial as om
-import OpticalAperture as oa
-import Ray as r
+import Raytracer.OpticalMaterial as om
+import Raytracer.OpticalAperture as oa
+import Raytracer.Ray as r
+
+import logging
 
 air = om.OpticalMaterial('air', [0.0002433468, 2.927321e-5], [0.00420135, 0.0174331])
 
+
 class Surface(object):
-    def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, -1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0, material=air, aperture=oa.OpticalAperture(12.7e-3)):
+    def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, -1, 0]), xt=np.array([0, 1, 0, 0]),
+                 n=1.0, material=air, aperture=oa.OpticalAperture(12.7e-3), grating_period=None, m=0):
         """ Basic surface. Implements functions for finding intersection with ray and coordinate transforms.
         
         Inputs:
@@ -30,15 +34,24 @@ class Surface(object):
         self.material = material
         self.xpMint = np.identity(4)
         self.xpM = np.identity(4)
-        self.generateTransformMatrix()
+        self.xM = np.identity(4)
+        self.xMT = np.identity(4)
+        self.xpMext = np.identity(4)
+        self.generate_transform_matrix()
         self.aperture = aperture
+        self.surface_edge = None
+        self.grating_period = grating_period
+        self.m = m                              # Grating diffraction order
+
+        self.logger = logging.getLogger("Surface.")
+        self.logger.setLevel(logging.INFO)
 
         xt2 = np.hstack((np.cross(self.xt[0:3], self.xn[0:3]), 0))
         self.xpM = np.transpose(np.vstack((xt2, self.xt, self.xn, np.array([0, 0, 0, 1]))))        
         
-        self.generateSurfaceEdge()
+        self.generate_surface_edge()
           
-    def generateTransformMatrix(self):
+    def generate_transform_matrix(self):
         self.xM = np.array([[1.0, 0.0, 0.0, -self.x[0]],
                              [0.0, 1.0, 0.0, -self.x[1]],
                              [0.0, 0.0, 1.0, -self.x[2]],
@@ -52,7 +65,7 @@ class Surface(object):
         # Third coordinate axis by cross product:
 #        self.xpM = np.dot(self.xpMint, self.xpMext)
      
-    def findIntersection(self, x, xp, n0=1.0):
+    def find_intersection(self, x, xp, n0=1.0):
         """ This is for intersection with a plane surface. Reimplement for new surface types. 
         Needs to find ray intersection and surface normal.
         """
@@ -66,34 +79,34 @@ class Surface(object):
         t = -xLocal[2] / xpLocal[2]        
         xnLocal = np.array([0.0, 0.0, 1.0, 0.0])
         
-        print "=============================="
-        print "xnLocal find: ", xnLocal
+        self.logger.debug("==============================")
+        self.logger.debug("xnLocal find: {0}".format(xnLocal))
         xNewLocal = xLocal + t * xpLocal
-        xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, self.n, n0)
+        xpNewLocal = self.calculate_local_refraction(xNewLocal, xpLocal, xnLocal, self.n, n0)
         xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM), xNewLocal))
         xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
 
-        print "xp: ", xp
-        print "xpLocal: ", xpLocal
-        print "xpNewLocal: ", xpNewLocal
-        print "xpNew: ", xpNew
-        print "------------------------------"        
-        print "t: ", t
-        print "x: ", x
-        print "xLocal: ", xLocal
-        print "xNewLocal: ", xNewLocal 
-        print "xNew: ", xNew  
-        return (xNew, xpNew, self.n)
+        self.logger.debug("xp: {0}".format(xp))
+        self.logger.debug("xpLocal: {0}".format(xpLocal))
+        self.logger.debug("xpNewLocal: {0}".format(xpNewLocal))
+        self.logger.debug("xpNew: {0}".format(xpNew))
+        self.logger.debug("------------------------------")
+        self.logger.debug("t: {0}".format(t))
+        self.logger.debug("x: {0}".format(x))
+        self.logger.debug("xLocal: {0}".format(xLocal))
+        self.logger.debug("xNewLocal: {0}".format(xNewLocal))
+        self.logger.debug("xNew: {0}".format(xNew))
+        return xNew, xpNew, self.n
     
-    def findIntersectionRay(self, ray, xMel, xMTel, xpMel):
+    def find_intersection_ray(self, ray, xM_el, xMT_el, xpM_el):
         """ This is for intersection with a plane surface. Re-implement for new surface types. 
         Needs to find ray intersection and surface normal.
         """
-        x = np.dot(xpMel, np.dot(xMel, ray.x[-1]))
-        xp = np.dot(xpMel, ray.xp[-1])
+        x = np.dot(xpM_el, np.dot(xM_el, ray.x[-1]))
+        xp = np.dot(xpM_el, ray.xp[-1])
         n0 = ray.n[-1]
-        n = self.material.getRefractiveIndex(ray.l)
-        ng = self.material.getGroupRefractiveIndex(ray.l)
+        n = self.material.get_refractive_index(ray.l)
+        ng = self.material.get_group_refractive_index(ray.l)
         # Transform to local coordinate system:       
         xLocal = np.dot(self.xpM, np.dot(self.xM, x))        
         xpLocal = np.dot(self.xpM, xp)
@@ -105,16 +118,16 @@ class Surface(object):
         xnLocal = np.array([0.0, 0.0, 1.0, 0.0])
         
         xNewLocal = xLocal + t * xpLocal
-        xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, n, n0)
+        xpNewLocal = self.calculate_local_refraction(xNewLocal, xpLocal, xnLocal, n, n0)
         xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM), xNewLocal))            
-        xNewEl = np.dot(xMTel, np.dot(np.transpose(xpMel), xNew))
+        xNewEl = np.dot(xMT_el, np.dot(np.transpose(xpM_el), xNew))
         xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
-        xpNewEl = np.dot(np.transpose(xpMel), xpNew)
+        xpNewEl = np.dot(np.transpose(xpM_el), xpNew)
         
-        if self.aperture.pointInAperture(xNewLocal) == True:
+        if self.aperture.point_in_aperture(xNewLocal) is True:
             ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
         
-    def findIntersectionRays(self, rays):
+    def find_intersection_rays(self, rays):
         """ This is for intersection with a plane surface. Re-implement for new surface types. 
         Needs to find ray intersection and surface normal.
         
@@ -123,10 +136,10 @@ class Surface(object):
         x = rays[:, 0, :]
         xp = rays[:, 1, :]
         data = rays[:, 2, :]
-        n0 = rays[0, 2, 1] # Assume all rays have the same refractive index
-        l = rays[0, 2, 0] # Assume all rays have the same wavelength
-        n = self.material.getRefractiveIndex(l)
-        ng = self.material.getGroupRefractiveIndex(l)
+        n0 = rays[0, 2, 1]      # Assume all rays have the same refractive index
+        l = rays[0, 2, 0]       # Assume all rays have the same wavelength
+        n = self.material.get_refractive_index(l)
+        ng = self.material.get_group_refractive_index(l)
         data[:, 1] = n
         data[:, 2] = ng
         # Transform to local coordinate system:       
@@ -140,9 +153,15 @@ class Surface(object):
         xnLocal = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0]), t.shape[0]), (t.shape[0], 4))
         
         xNewLocal = xLocal + np.transpose(np.multiply(np.transpose(xpLocal), t))
-        intersectInd = self.aperture.pointInAperture(xNewLocal)
-        xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[intersectInd, :], xnLocal[intersectInd, :], n, n0)
-        xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
+        intersectInd = self.aperture.point_in_aperture(xNewLocal)
+        if self.grating_period is None:
+            xpNewLocal = self.calculate_local_refractions(xNewLocal[intersectInd, :], xpLocal[intersectInd, :],
+                                                          xnLocal[intersectInd, :], n, n0)
+        else:
+            xpNewLocal = self.calculate_local_diffractions(xNewLocal[intersectInd, :], xpLocal[intersectInd, :],
+                                                           xnLocal[intersectInd, :], n, n0, np.array([1.0, 0, 0, 0]),
+                                                           l, self.grating_period, self.m)
+        xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))
         xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
         
 #         print "intersectInd: ", intersectInd
@@ -156,14 +175,10 @@ class Surface(object):
         rays[intersectInd, 2, 1] = n
         rays[intersectInd, 2, 2] = ng
         return rays
-#        return np.dstack((xNew,xpNew,data)).swapaxes(1,2)
-        
-#         if self.aperture.pointInAperture(xNewLocal) == True:
-#             ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
 
-    def calculateLocalRefractions(self, x, xp, xn, n, n0):
+    def calculate_local_refractions(self, x, xp, xn, n, n0):
         """ Calculate refraction at surface for local coordinates x and
-        local direction xp. Returns new direction and refractive index. 
+        local direction xp. Returns new direction.
         
         Inputs:
         x: Local coordinate for ray intersection
@@ -192,8 +207,36 @@ class Surface(object):
 #         print "cos(theta1)", costh1
 #         print "cos(theta2)", np.sqrt(cos2th2)
         return xp2
+
+    def calculate_local_diffractions(self, x, xp, xn, n2, n1, q=None, l0=263e-9, d=1.0/1800e3, m=0):
+        """ Calculate grating diffraction at surface for local coordinates x and
+        local direction xp. Returns new direction and refractive index.
+
+        Inputs:
+        x: Local coordinate for ray intersection
+        xp: Local coordinates for ray direction
+        xn: Local surface normal
+        n2: Refractive index in the medium where the ray is exiting to
+        n1: Refractive index in the medium where the ray is coming from
+        q: Grating unit vector in local coordinates
+        l0: Ray wavelength in m
+        d: surface grating period in m
+        m: diffraction order to calculate
+        """
+        if q is None:
+            x_eff = n1 * xp
+        else:
+            x_eff = n1 * xp + m * l0 / d * q
+        xdotn = np.sum(np.multiply(x_eff, xn), 1)
+        gamma = xdotn / n2 - np.sqrt((xdotn**2 - np.sum(np.multiply(x_eff, x_eff), 1)) / n2**2 + 1)
+        self.logger.info("\nx_eff: {0} \nxn:    {1}\ngamma: {2}".format(x_eff.shape, xn.shape, gamma))
+        self.logger.info("\nx_eff: {0} \nxdotn:    {1}\nxn: {2}".format(x_eff, xdotn, xn))
+        self.logger.info("\nxdotn2: {0} \nx_eff2:    {1}\nn2: {2}".format(xdotn**2, np.sum(np.multiply(x_eff, x_eff), 1), n2))
+        xp2 = x_eff / n2 + gamma[:, np.newaxis] * xn
+
+        return xp2
                 
-    def calculateLocalRefraction(self, x, xp, xn, n, n0):
+    def calculate_local_refraction(self, x, xp, xn, n, n0):
         """ Calculate refraction at surface for local coordinates x and
         local direction xp. Returns new direction and refractive index. 
         
@@ -227,7 +270,7 @@ class Surface(object):
 #         print "cos(theta2)", np.sqrt(cos2th2)
         return xp2
 
-    def calculateLocalRefractionOld(self, x, xp, xn, n0):
+    def calculate_local_refraction_old(self, x, xp, xn, n0):
         """ Calculate refraction at surface for local coordinates x and
         local direction xp. Returns new direction and refractive index. 
         
@@ -241,25 +284,24 @@ class Surface(object):
         n_r = n0 / self.n
         ndxp = -np.dot(xn, xp)
         sinth2 = n_r ** 2 * (1 - ndxp ** 2)
-        print "-------------------"
-        print "theta_i: ", np.arccos(ndxp) * 180 / np.pi
-        print "theta_t: ", np.arcsin(np.sqrt(sinth2)) * 180 / np.pi
-        print "ndxp: ", ndxp
-        print "n_r: ", n_r
-        print "sin(theta)**2: ", sinth2
-        print "n_r*ndxp...", (n_r * ndxp - np.sqrt(1 - sinth2)) * xn
+        self.logger.debug("-------------------")
+        self.logger.debug("theta_i: {0}".format(np.arccos(ndxp) * 180 / np.pi))
+        self.logger.debug("theta_t: {0}".format(np.arcsin(np.sqrt(sinth2)) * 180 / np.pi))
+        self.logger.debug("ndxp: {0}".format(ndxp))
+        self.logger.debug("n_r: {0}".format(n_r))
+        self.logger.debug("sin(theta)**2: {0}".format(sinth2))
+        self.logger.debug("n_r*ndxp... {0}".format((n_r * ndxp - np.sqrt(1 - sinth2)) * xn))
         xp_o = n_r * xp + (n_r * ndxp - np.sqrt(1 - sinth2)) * xn                    
         return xp_o
- 
 
-    def setPosition(self, newPos):
+    def set_position(self, newPos):
         if newPos.shape[0] == 3:
             self.x = np.hstack((newPos, 1))
         else:
             self.x = newPos
-        self.generateTransformMatrix()
+        self.generate_transform_matrix()
  
-    def setRotationExternal(self, theta, phi): 
+    def set_rotation_external(self, theta, phi):
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
                          [0.0, +np.cos(theta), np.sin(theta), 0.0],
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
@@ -273,7 +315,7 @@ class Surface(object):
         self.xpMext = np.dot(thM, phM)
 #        self.xpM = np.dot(self.xpMint, self.xpMext)
         
-    def rotateExternal(self, theta, phi):
+    def rotate_external(self, theta, phi):
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
                          [0.0, +np.cos(theta), np.sin(theta), 0.0],
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
@@ -287,11 +329,11 @@ class Surface(object):
         self.xpMext = np.dot(np.dot(thM, phM), self.xpMext)
 #        self.xpM = np.dot(self.xpMint, self.xpMext)
         
-    def setRotationExternalMatrix(self, xpMext):          
+    def set_rotation_external_matrix(self, xpMext):
         self.xpMext = xpMext
 #        self.xpM = np.dot(self.xpMint, self.xpMext)
                 
-    def setRotationInternal(self, theta, phi):
+    def set_rotation_internal(self, theta, phi):
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
                          [0.0, +np.cos(theta), np.sin(theta), 0.0],
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
@@ -306,23 +348,24 @@ class Surface(object):
 #        self.xpM = np.dot(self.xpMint, self.xpMext)
         self.xpM = np.dot(self.xpM, np.dot(thM, phM))
         
-    def generateSurfaceEdge(self):
-        self.surfaceEdge = self.aperture.getEdge()
+    def generate_surface_edge(self):
+        self.surface_edge = self.aperture.get_edge()
     
-    def getEdges(self):
-        se = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(self.surfaceEdge))))
+    def get_edges(self):
+        se = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(self.surface_edge))))
         return se
     
-    def getRaysFootprint(self, rays):
+    def get_rays_footprint(self, rays):
         xLocal = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(rays))))
         return xLocal
-        
+
+
 class SphericalSurface(Surface):
     def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, -1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0, r=1.0, material=air, aperture=oa.OpticalAperture(12.7e-3)):
         self.r = r
-        Surface.__init__(self, x=x, xn=xn, xt=xt, n=n, material=material, aperture=aperture)        
-        
-    def findIntersection(self, x, xp, n0=1.0):
+        Surface.__init__(self, x=x, xn=xn, xt=xt, n=n, material=material, aperture=aperture)
+
+    def find_intersection(self, x, xp, n0=1.0):
         # Transform to local coordinate system:
         xLocal = np.dot(self.xpM, np.dot(self.xM, x))
         xpLocal = np.dot(self.xpM, xp)
@@ -347,7 +390,7 @@ class SphericalSurface(Surface):
             xnLocal = xNewLocal - np.array([0, 0, -self.r, 1])
             xnLocal = xnLocal / np.sqrt(np.dot(xnLocal, xnLocal))
             
-            xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, self.n, n0)
+            xpNewLocal = self.calculate_local_refraction(xNewLocal, xpLocal, xnLocal, self.n, n0)
             xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM), xNewLocal))
             xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
             nNew = self.n
@@ -357,14 +400,14 @@ class SphericalSurface(Surface):
             xpNew = None
             nNew = n0
                 
-        return (xNew, xpNew, nNew)
+        return xNew, xpNew, nNew
 
-    def findIntersectionRay(self, ray, xMel, xMTel, xpMel):
-        x = np.dot(xpMel, np.dot(xMel, ray.x[-1]))
-        xp = np.dot(xpMel, ray.xp[-1])
+    def find_intersection_ray(self, ray, xM_el, xMT_el, xpM_el):
+        x = np.dot(xpM_el, np.dot(xM_el, ray.x[-1]))
+        xp = np.dot(xpM_el, ray.xp[-1])
         n0 = ray.n[-1]
-        n = self.material.getRefractiveIndex(ray.l)
-        ng = self.material.getGroupRefractiveIndex(ray.l)
+        n = self.material.get_refractive_index(ray.l)
+        ng = self.material.get_group_refractive_index(ray.l)
         # Transform to local coordinate system:       
         xLocal = np.dot(self.xpM, np.dot(self.xM, x))        
         xpLocal = np.dot(self.xpM, xp)
@@ -390,12 +433,12 @@ class SphericalSurface(Surface):
             xnLocal = xNewLocal - np.array([0, 0, -self.r, 1])
             xnLocal = xnLocal / np.sqrt(np.dot(xnLocal, xnLocal))
             
-            xpNewLocal = self.calculateLocalRefraction(xNewLocal, xpLocal, xnLocal, n, n0)
+            xpNewLocal = self.calculate_local_refraction(xNewLocal, xpLocal, xnLocal, n, n0)
             xNew = np.dot(self.xMT, np.dot(np.transpose(self.xpM), xNewLocal))            
-            xNewEl = np.dot(xMTel, np.dot(np.transpose(xpMel), xNew))
+            xNewEl = np.dot(xMT_el, np.dot(np.transpose(xpM_el), xNew))
             xpNew = np.dot(np.transpose(self.xpM), xpNewLocal)
-            xpNewEl = np.dot(np.transpose(xpMel), xpNew)
-            if self.aperture.pointInAperture(xNewLocal) == True:
+            xpNewEl = np.dot(np.transpose(xpM_el), xpNew)
+            if self.aperture.point_in_aperture(xNewLocal) == True:
                 ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
         else:
             # No intersection
@@ -403,7 +446,7 @@ class SphericalSurface(Surface):
             xpNew = None
             nNew = n0
 
-    def findIntersectionRays(self, rays):
+    def find_intersection_rays(self, rays):
         """ This is for intersection with a plane surface. Re-implement for new surface types. 
         Needs to find ray intersection and surface normal.
         
@@ -414,8 +457,8 @@ class SphericalSurface(Surface):
         data = rays[:, 2, :]
         n0 = rays[0, 2, 1] # Assume all rays have the same refractive index
         l = rays[0, 2, 0] # Assume all rays have the same wavelength
-        n = self.material.getRefractiveIndex(l)
-        ng = self.material.getGroupRefractiveIndex(l)
+        n = self.material.get_refractive_index(l)
+        ng = self.material.get_group_refractive_index(l)
         data[:, 1] = n
         data[:, 2] = ng
         nRays = x.shape[0]
@@ -446,10 +489,10 @@ class SphericalSurface(Surface):
         t[tNegInd] -= 2 * sq[tNegInd]
         
         xNewLocal = xLocal[sq2PosInd, :] + np.transpose(np.multiply(np.transpose(xpLocal[sq2PosInd, :]), t))
-        intersectInd = self.aperture.pointInAperture(xNewLocal)
+        intersectInd = self.aperture.point_in_aperture(xNewLocal)
         xnLocal = xNewLocal[intersectInd, :] - xc[sq2PosInd, :][intersectInd, :]
         xnLocal = np.transpose(np.divide(np.transpose(xnLocal) , np.sqrt(np.sum(np.multiply(xnLocal, xnLocal), 1))))
-        xpNewLocal = self.calculateLocalRefractions(xNewLocal[intersectInd, :], xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
+        xpNewLocal = self.calculate_local_refractions(xNewLocal[intersectInd, :], xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
         xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
         xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
         
@@ -470,10 +513,10 @@ class SphericalSurface(Surface):
 #         if self.aperture.pointInAperture(xNewLocal) == True:
 #             ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
                 
-    def generateSurfaceEdge(self):
+    def generate_surface_edge(self):
         nbrPoints = 16
         theta0 = np.arcsin(self.aperture.size / self.r)
         theta = np.linspace(-theta0, theta0, nbrPoints)
         xe = np.vstack((-self.r * np.sin(theta), np.zeros(nbrPoints), -self.r * (1 - np.cos(theta)), np.ones(nbrPoints)))
         ye = np.vstack((np.zeros(nbrPoints), -self.r * np.sin(theta), -self.r * (1 - np.cos(theta)), np.ones(nbrPoints)))
-        self.surfaceEdge = np.transpose(np.hstack((xe, ye)))
+        self.surface_edge = np.transpose(np.hstack((xe, ye)))
