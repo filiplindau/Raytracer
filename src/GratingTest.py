@@ -48,18 +48,34 @@ slab2.set_rotation(0, 0 * np.pi / 180)
 
 grating = oe.GratingElement(x=np.array([0, 0, 50e-3]), m=1)
 
+mirror0 = oe.MirrorElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 20e-3]),
+                           material=opt_sys.material_library.get_material('fs'), size=50.8e-3)
+mirror1 = oe.MirrorElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]),
+                           material=opt_sys.material_library.get_material('fs'), size=50.8e-3)
+mirror1.set_rotation(0, 5*np.pi/180)
+
 screen = oe.ScreenElement(x=np.array([0, 0, 200e-3]))
 screen.rotate_element(0, 0 * np.pi / 180)
 
-r1 = rs.Collimated1DSource(num_rays=10, x_dim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
+r1 = rs.Collimated1DSource(num_rays=2, x_dim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
 r2 = rs.Collimated1DSource(num_rays=10, x_dim=10e-3, l=400e-9, color=(0, 0.5, 0))
 
+phi = 2 * np.pi / 180.0
+m = np.array([[+np.cos(phi), 0.0, np.sin(phi), 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [-np.sin(phi), 0.0, np.cos(phi), 0.0],
+                [0.0, 0.0, 0.0, 1.0]])
+r1.rays[:, 1, :] = np.dot(m, r1.rays[:, 1, :].transpose()).transpose()
+
 # optSys.addElement(slab)
-# optSys.rotateOpticalAxisAfterElement(0, -10 * np.pi / 180, 0)
-opt_sys.add_element(grating)
+# opt_sys.add_element(grating)
+opt_sys.add_element(mirror0)
+opt_sys.add_element(mirror1)
+opt_sys.rotate_optical_axis_after_element(0, 180 * np.pi / 180, 0)
+# opt_sys.rotate_optical_axis_after_element(1, 180 * np.pi / 180, 0)
 opt_sys.add_element(screen)
 opt_sys.add_ray_source(r1)
-opt_sys.add_ray_source(r2)
+# opt_sys.add_ray_source(r2)
 logger.info("raytracing...")
 opt_sys.trace_system()
 

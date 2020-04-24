@@ -7,6 +7,7 @@ Created on 10 Oct 2015
 import numpy as np
 import Raytracer.OpticalElement as oe
 import Raytracer.OpticalMaterial as om
+import Raytracer.OpticalAperture as oa
 import logging
 
 
@@ -27,6 +28,7 @@ class OpticalSystem(object):
         self.optical_axis_phi = 0.0
         self.logger = logging.getLogger("System.")
         self.logger.setLevel(logging.INFO)
+        self.surround_aperture = oa.InsideSphereAperture(1.0)
         
     def add_element(self, element):
         # element.rotateElement(self.opticalAxisTheta, self.opticalAxisPhi)
@@ -52,6 +54,7 @@ class OpticalSystem(object):
         
         self.optical_axis_xM.append(newXM)
         self.optical_axis_xMT.append(newXMT)
+        self.surround_aperture.r = 2 * xg
         
     def set_optical_axis_pos(self, element_number):
         x = self.elements[element_number].x

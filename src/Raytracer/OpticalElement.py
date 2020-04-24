@@ -20,6 +20,16 @@ ml = om.MaterialLibrary()
 class OpticalElement(object):
     def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0,
                  thickness=1.0e-3, material=air, size=12.7e-3):
+        """
+        :param x: Position vector in global coordinates
+        :param xn: Element normal vector
+        :param xt: Element tangent vector
+        :param n: Refractive index if no material is specified
+        :param thickness: Element thickness in meters
+        :param material: Material as a OpticalMaterial instance
+        :param size: Element aperture size in meters
+        :returns:
+        """
         self.n = n
         self.thickness = thickness
         self.material = material
@@ -28,9 +38,9 @@ class OpticalElement(object):
         self.logger = logging.getLogger("Element.")
         self.logger.setLevel(logging.INFO)
 
-        self.xM = None
-        self.xMT = None
-        self.xpM = None
+        self.xM = None              # Transform matrix for position
+        self.xMT = None             # Transposed position transform matrix
+        self.xpM = None             # Transform matrix for angle
         self.surfaces = list()
         
         if x.shape[0] == 3:
@@ -71,6 +81,12 @@ class OpticalElement(object):
         self.xpM = np.transpose(np.vstack((xt2, self.xt, self.xn, np.array([0, 0, 0, 1]))))     
         
     def set_rotation(self, theta, phi):
+        """
+        Set element rotation to theta, phi angles
+
+        :param theta: Rotation along theta axis
+        :param phi: Rotation along phi axis
+        """
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
                          [0.0, +np.cos(theta), np.sin(theta), 0.0],
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
@@ -86,6 +102,12 @@ class OpticalElement(object):
         self.xt = np.dot(self.xpM, self.xt)
 
     def rotate_element(self, theta, phi):
+        """
+        Rotate the element relative to the current rotation
+
+        :param theta: Rotation along theta axis
+        :param phi: Rotatino along phi axis
+        """
         thM = np.array([[1.0, 0.0, 0.0, 0.0],
                          [0.0, +np.cos(theta), np.sin(theta), 0.0],
                          [0.0, -np.sin(theta), np.cos(theta), 0.0],
@@ -139,7 +161,7 @@ class OpticalElement(object):
             
     def init_surfaces(self):
         ap = oa.CircularAperture(self.size)
-        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=self.xn, xt=self.xt, n=self.n,
+        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n,
                         material=self.material, aperture=ap)
         s2 = os.Surface(x=np.array([0, 0, self.thickness, 1]), xn=self.xn, xt=self.xt, n=self.n,
                         material=air, aperture=ap)
@@ -159,13 +181,14 @@ class OpticalElement(object):
         raysEl[:, 1, :] = np.transpose(np.dot(self.xpM, np.transpose(rays[:, 1, :])))
 #        print "raysEl in: ", raysEl[0, 1, :]
 #        print "raysGl in: ", raysGl[0, 1, :]
-        for surf in self.surfaces:                            
+        for surf in self.surfaces:
             raysEl = surf.find_intersection_rays(raysEl)
 #            print "raysEl: ", raysEl[0, 1, :]
             raysGlNew = raysEl.copy()
+
             raysGlNew[:, 0, :] = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM),
                                                                       np.transpose(raysEl[:, 0, :]))))
-            raysGlNew[:, 1, :] = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 1, :]))) 
+            raysGlNew[:, 1, :] = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 1, :])))
             raysGlList.append(raysGlNew)
 #            print "raysGl new: ", raysGlNew[0, 1, :]
         return raysGlList
@@ -234,7 +257,7 @@ class ScreenElement(OpticalElement):
         
     def init_surfaces(self):
         ap = oa.InifiniteAperture()
-        self.surfaces = [os.Surface(x=np.array([0, 0, 0, 1]), xn= -self.xn, xt=self.xt, n=self.n,
+        self.surfaces = [os.Surface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n,
                                     material=self.material, aperture=ap)]
 
 
@@ -260,3 +283,27 @@ class GratingElement(OpticalElement):
                         aperture=ap, grating_period=self.grating_period, m=self.m)
         s2.set_rotation_internal(0, 0)
         self.surfaces = [s1, s2]
+
+
+class MirrorElement(OpticalElement):
+    def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]),
+                 n=1.0, material=air, thickness=5e-5, size=25.4e-3):
+        self.size = size
+        self.thickness = thickness
+        material.reflector = True
+        super(MirrorElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material=material, thickness=0.0)
+
+    def init_surfaces(self):
+        ap = oa.CircularAperture()
+        s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n,
+                        material=self.material, aperture=ap)
+        s1.set_rotation_internal(0, 0)
+
+        #        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
+        s2 = os.Surface(x=np.array([0, 0, self.thickness, 1]), xn=self.xn, xt=self.xt, n=1.0,
+                        material=air, aperture=ap, )
+        s2.set_rotation_internal(0, 0)
+        self.surfaces = [s1]
+
+
+

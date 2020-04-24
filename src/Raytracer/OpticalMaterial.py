@@ -9,7 +9,7 @@ import logging
 
 
 class OpticalMaterial(object):
-    def __init__(self, name, sellmeierBList, sellmeierCList, n0=1.0):
+    def __init__(self, name, sellmeierBList, sellmeierCList, n0=1.0, reflector=False):
         """ A new material defined by the list of sellmeier coefficients B and C.
         Note that the coefficients should be for a wavelength in um (as is
         customary), but the refractive index is then calculated for a wavelength
@@ -21,6 +21,8 @@ class OpticalMaterial(object):
         self.sellmeier = None
         
         self.generateSellmeierFunction(sellmeierBList, sellmeierCList, n0)
+
+        self.reflector = reflector
         
     def generateSellmeierFunction(self, BList, CList, n0=1.0):
         B = np.array(BList)
@@ -43,6 +45,9 @@ class OpticalMaterial(object):
         n = self.get_refractive_index(l)
         dn = self.get_refractive_index(l + dl) - self.get_refractive_index(l - dl)
         return n - l * dn / (2 * dl)
+
+    def get_reflector(self):
+        return self.reflector
 
 
 class MaterialLibrary(object):
@@ -68,7 +73,9 @@ class MaterialLibrary(object):
         self.materials['sapphire'] = sapphire
         n = OpticalMaterial('n', [], [], 1.5)
         self.materials['n'] = n
-        
+        mirror = OpticalMaterial('mirror', [], [], 1.5, True)
+        self.materials['mirror'] = mirror
+
     def get_material(self, name):
         return self.materials[name]
     

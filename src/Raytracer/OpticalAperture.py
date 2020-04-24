@@ -89,8 +89,19 @@ class RectangularAperture(OpticalAperture):
 
 
 class InifiniteAperture(OpticalAperture):
-    def __init__(self):
+    def __init__(self, absorb=True):
+        self.absorb = absorb
         OpticalAperture.__init__(self)
     
     def point_in_aperture(self, x):
         return np.tile(True, x.shape[0])
+
+
+class InsideSphereAperture(OpticalAperture):
+    def __init__(self, r, absorb=True):
+        self.absorb = absorb
+        self.r = r
+        OpticalAperture.__init__(self)
+
+    def point_in_aperture(self, x):
+        return np.sum(x[:, 0:3]**2, 1) > self.r**2
