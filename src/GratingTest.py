@@ -6,7 +6,7 @@ Created on 14 Apr 2020
 
 import Raytracer as rt
 import Raytracer.OpticalElement as oe
-import Raytracer.OpticalSystem as optsys
+import Raytracer.OpticalSystem2 as optsys
 import Raytracer.OpticalSurface as optsurf
 import Raytracer.OpticalMaterial as om
 import Raytracer.OpticalAperture as oa
@@ -67,7 +67,7 @@ slab2 = oe.OpticalElement(n=1.0, thickness=2e-3, x=np.array([0, 0, 60e-3]),
 r1 = rs.Collimated1DSource(num_rays=3, x_dim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
 r2 = rs.Collimated1DSource(num_rays=10, x_dim=10e-3, l=400e-9, color=(0, 0.5, 0))
 
-phi = 0 * np.pi / 180.0
+phi = 15 * np.pi / 180.0
 m = np.array([[+np.cos(phi), 0.0, np.sin(phi), 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [-np.sin(phi), 0.0, np.cos(phi), 0.0],
@@ -80,10 +80,10 @@ r1.rays[:, 1, :] = np.dot(m, r1.rays[:, 1, :].transpose()).transpose()
 # opt_sys.add_element(mirror1)
 opt_sys.add_element(slab0)
 opt_sys.add_element(slab1)
-opt_sys.add_element(slab2)
+# opt_sys.add_element(slab2)
 opt_sys.add_element(screen)
-# opt_sys.rotate_optical_axis_after_element(0, 180 * np.pi / 180, 0)
-# opt_sys.rotate_optical_axis_after_element(1, 180 * np.pi / 180, 0)
+# opt_sys.rotate_optical_axis_after_element(0, 6 * np.pi / 180, 0)
+# opt_sys.rotate_optical_axis_after_element(1, 0 * np.pi / 180, 0)
 opt_sys.add_ray_source(r1)
 # opt_sys.add_ray_source(r2)
 logger.info("raytracing...")
@@ -101,7 +101,7 @@ for ind in range(opt_sys.elements.__len__()):
 for raySource in opt_sys.ray_source_list:
     p = raySource.get_ray_points()
     for rayP in p:
-        mpl.plot(rayP[0][:, 2], rayP[0][:, 0], color=rayP[1])
+        mpl.plot(rayP[0][:, 2], rayP[0][:, 0], "-d", color=rayP[1])
 mpl.axis('equal')
 mpl.grid()
 mpl.draw()

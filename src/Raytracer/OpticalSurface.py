@@ -259,14 +259,16 @@ class Surface(object):
             else:
                 xp_eff = n1 * xp + m * l0 / d * q
             xdotn = np.sum(np.multiply(xp_eff, xn), 1)
-            gamma = xdotn / n2 - np.sqrt((xdotn**2 - np.sum(np.multiply(xp_eff, xp_eff), 1)) / n2**2 + 1)
+            quad = (xdotn**2 - np.sum(np.multiply(xp_eff, xp_eff), 1)) / n2**2 + 1
+            gamma = xdotn / n2 - np.sqrt(quad)
             self.logger.debug("\nxp_eff: {0} \nxn:    {1}\ngamma: {2}".format(xp_eff.shape, xn.shape, gamma))
             self.logger.debug("\nxp_eff: {0} \nxdotn:    {1}\nxn: {2}".format(xp_eff, xdotn, xn))
             self.logger.debug("\nxdotn2: {0} \nx_eff2:    {1}\nn2: {2}".format(xdotn**2, np.sum(np.multiply(xp_eff, xp_eff), 1), n2))
             xp2 = xp_eff / n2 + gamma[:, np.newaxis] * xn
+            xp2[np.where(quad < 0)] = xp[np.where(quad < 0)]
 
-        # xp_norm = xp2 / np.sqrt((xp2**2).sum(1))[:, np.newaxis]
-        xp_norm = xp2
+        xp_norm = xp2 / np.sqrt((xp2**2).sum(1))[:, np.newaxis]
+        # xp_norm = xp2
         self.logger.info("\nxp:\n {0}\n\nxp_norm:\n {1} ".format(xp, xp_norm))
         return xp_norm
                 
