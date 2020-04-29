@@ -183,7 +183,7 @@ class OpticalElement(object):
 #        print "raysGl in: ", raysGl[0, 1, :]
         for surf in self.surfaces:
             raysEl = surf.find_intersection_rays(raysEl)
-#            print "raysEl: ", raysEl[0, 1, :]
+            self.logger.info("raysEl: {0}".format(raysEl[0, 1, :]))
             raysGlNew = raysEl.copy()
 
             raysGlNew[:, 0, :] = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM),
