@@ -5,6 +5,7 @@ Created on 9 Oct 2015
 """
 
 import numpy as np
+import copy
 
 import Raytracer.OpticalSurface as os
 import Raytracer.OpticalMaterial as om
@@ -19,7 +20,7 @@ ml = om.MaterialLibrary()
 
 class OpticalElement(object):
     def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0,
-                 thickness=1.0e-3, material=air, size=12.7e-3):
+                 thickness=1.0e-3, material=air, size=12.7e-3, name="Element"):
         """
         :param x: Position vector in global coordinates
         :param xn: Element normal vector
@@ -28,12 +29,14 @@ class OpticalElement(object):
         :param thickness: Element thickness in meters
         :param material: Material as a OpticalMaterial instance
         :param size: Element aperture size in meters
+        :param name: Element name
         :returns:
         """
         self.n = n
         self.thickness = thickness
-        self.material = material
+        self.material = copy.copy(material)
         self.size = size
+        self.name = name
 
         self.logger = logging.getLogger("Element.")
         self.logger.setLevel(logging.INFO)
@@ -181,16 +184,24 @@ class OpticalElement(object):
         raysEl[:, 1, :] = np.transpose(np.dot(self.xpM, np.transpose(rays[:, 1, :])))
 #        print "raysEl in: ", raysEl[0, 1, :]
 #        print "raysGl in: ", raysGl[0, 1, :]
+        self.logger.info("{0}".format(self))
+        i = 0
         for surf in self.surfaces:
+            i += 1
+            self.logger.debug("\n\n============================================\nSurface {0}/{1}\n"
+                             "============================================\n\n".format(i, len(self.surfaces)))
+            rays_inp_l = raysEl.copy()
             raysEl = surf.find_intersection_rays(raysEl)
-            self.logger.info("raysEl: {0}".format(raysEl[0, 1, :]))
+            # self.logger.info("{0} raysEl: {1}".format(self, raysEl[0, 1, :]))
             raysGlNew = raysEl.copy()
 
             raysGlNew[:, 0, :] = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM),
                                                                       np.transpose(raysEl[:, 0, :]))))
             raysGlNew[:, 1, :] = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(raysEl[:, 1, :])))
             raysGlList.append(raysGlNew)
-#            print "raysGl new: ", raysGlNew[0, 1, :]
+            self.logger.debug("{0} Ray data\n\nGlobal input rays:\n{1}\n\nLocal input rays:\n{2}\n\n"
+                             "Local output rays:\n{3}\n\n"
+                             "Global output rays:\n{4}".format(self, rays, rays_inp_l, raysEl, raysGlNew))
         return raysGlList
     
     def get_rays_footprint(self, rays, surface_number):
@@ -206,13 +217,16 @@ class OpticalElement(object):
                 self.logger.debug("--------------------------------")
                 surf.find_intersection_ray(ray, self.xM, self.xMT, self.xpM)
 
+    def __repr__(self):
+        return "Element {0}".format(self.name)
+
 
 class PrismElement(OpticalElement):
     def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0,
-                 apex_angle=60 * np.pi / 180, side_length=25e-3, material=air):
+                 apex_angle=60 * np.pi / 180, side_length=25e-3, material=air, name="Prism"):
         self.apex_angle = apex_angle
         self.side_length = side_length
-        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, material=material)
+        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, material=material, name=name)
             
     def init_surfaces(self):
         ap = oa.RectangularAperture([self.side_length, self.side_length])
@@ -233,10 +247,10 @@ class PrismElement(OpticalElement):
 
 class PCXElement(OpticalElement):
     def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0, r=1.0,
-                 thickness=5e-3, material=air, size=12.7e-3):
+                 thickness=5e-3, material=air, size=12.7e-3, name="PCX lens"):
         self.r1 = r
         self.size = size
-        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, thickness=thickness, material=material)        
+        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, thickness=thickness, material=material, name=name)
         
     def init_surfaces(self):
         ap = oa.CircularAperture(self.size)
@@ -245,15 +259,16 @@ class PCXElement(OpticalElement):
         s1 = os.SphericalSurface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n, r=self.r1,
                                  material=self.material, aperture=ap)
 #        s2 = os.Surface(x=self.x, xn=self.xn, xt=self.xt, n=1.0, material=air, aperture=ap)
-        s2 = os.Surface(x=np.array([0, 0, self.thickness, 1]), xn=-self.xn, xt=self.xt, n=1.0,
+        s2 = os.Surface(x=np.array([0, 0, self.thickness, 1]), xn=self.xn, xt=self.xt, n=1.0,
                         material=air, aperture=ap)
 #        s2.setPosition(self.x+np.array([0,0,self.thickness,0]))
         self.surfaces = [s1, s2]
 
 
 class ScreenElement(OpticalElement):
-    def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), material=air):
-        super(ScreenElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material=material, thickness=0.0)
+    def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), material=air,
+                 name="Screen"):
+        super(ScreenElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material=material, thickness=0.0, name=name)
         
     def init_surfaces(self):
         ap = oa.InifiniteAperture()
@@ -263,15 +278,16 @@ class ScreenElement(OpticalElement):
 
 class GratingElement(OpticalElement):
     def __init__(self, x=np.array([0, 0, 0, 1]), xn=np.array([0, 0, 1, 0]), xt=np.array([0, 1, 0, 0]), n=1.0,
-                 thickness=2e-3, grating_period=1.0/1800e3, m=1, side_length=25e-3, material=ml.get_material("fs")):
+                 thickness=2e-3, grating_period=1.0/1800e3, m=1, side_length=25e-3, material=ml.get_material("fs"),
+                 name="Grating"):
         self.grating_period = grating_period
         self.side_length = side_length
         self.thickness = thickness
         self.m = m
-        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, material=material)
+        OpticalElement.__init__(self, x=x, xn=xn, xt=xt, n=n, material=material, name=name)
 
     def init_surfaces(self):
-        self.logger.info("Init grating surfaces")
+        self.logger.info("{0} Init grating surfaces".format(self))
         ap = oa.RectangularAperture([self.side_length, self.side_length])
         #        s1 = os.Surface(x=self.x, xn=-self.xn, xt=self.xt, n=self.n, material=self.material, aperture=ap)
         s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n,
@@ -290,8 +306,8 @@ class MirrorElement(OpticalElement):
                  n=1.0, material=air, thickness=5e-5, size=25.4e-3):
         self.size = size
         self.thickness = thickness
-        material.reflector = True
         super(MirrorElement, self).__init__(x=x, xn=xn, xt=xt, n=1.0, material=material, thickness=0.0)
+        self.material.reflector = True
 
     def init_surfaces(self):
         ap = oa.CircularAperture()

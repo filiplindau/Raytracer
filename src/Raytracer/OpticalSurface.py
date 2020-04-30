@@ -44,7 +44,7 @@ class Surface(object):
         self.m = m                              # Grating diffraction order
 
         self.logger = logging.getLogger("Surface.")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
 
         xt2 = np.hstack((np.cross(self.xt[0:3], self.xn[0:3]), 0))
         self.xpM = np.transpose(np.vstack((xt2, self.xt, self.xn, np.array([0, 0, 0, 1]))))        
@@ -142,8 +142,8 @@ class Surface(object):
         ng = self.material.get_group_refractive_index(l)
         reflector = self.material.get_reflector()
 
-        self.logger.info("\n\nx:\n {0}\n\nxp:\n {1}\n\n"
-                         "".format(x, xp))
+        self.logger.debug("\nIncoming rays in element local coords:\n\nx:\n {0}\n\nxp:\n {1}\n\n"
+                          "".format(x, xp))
 
         # self.logger.info("n0: {0}, n: {1}".format(n0, n))
         data[:, 1] = n
@@ -152,47 +152,53 @@ class Surface(object):
         x_local = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(x))))
         xp_local = np.transpose(np.dot(self.xpM, np.transpose(xp)))
         
-        # Plane surface
-        # Intersection where x_local + t*xp_local crosses z = 0
-        # Reimplement here
-        t = -x_local[:, 2] / xp_local[:, 2]
-        xn_local = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0]), t.shape[0]), (t.shape[0], 4))
+        t, xn_local = self.surface_intersect(x_local, xp_local)
 
         x_new_local = x_local + np.transpose(np.multiply(np.transpose(xp_local), t))
         # Reset positions where the rays where pointing away from the surface:
         dir_wrong_ind = t < 0
-        self.logger.info("dir_wrong_ind: {0}".format(dir_wrong_ind))
+        self.logger.debug("dir_wrong_ind: {0}".format(dir_wrong_ind))
         x_new_local[dir_wrong_ind, :] = x_local[dir_wrong_ind, :]
         intersect_ind = self.aperture.point_in_aperture(x_new_local)
         good_ind = np.logical_and(intersect_ind, np.logical_not(dir_wrong_ind))
-        self.logger.info("dir_wrong_ind: {0}, intersect_ind: {1}, x shape: {2}".format(dir_wrong_ind, intersect_ind,
-                                                                                  x_local.shape))
+        self.logger.debug("dir_wrong_ind: {0}, intersect_ind: {1}, x shape: {2}".format(dir_wrong_ind, intersect_ind,
+                                                                                        x_local.shape))
 
         xp_new_local = xp_local.copy()
         xp_new_local[good_ind, :] = self.calculate_local_diffractions(
             x_new_local[good_ind, :], xp_local[good_ind, :],
-            xn_local[good_ind, :], n, n0, reflector,
+            xn_local[good_ind, :], n0, n, reflector,
             np.array([1.0, 0, 0, 0]), l, self.grating_period, self.m)
-        # if self.grating_period is None:
-        #     xp_new_local = self.calculate_local_refractions(x_new_local[intersect_ind, :], xp_local[intersect_ind, :],
-        #                                                   xn_local[intersect_ind, :], n, n0)
-        # else:
-        #     xp_new_local = self.calculate_local_diffractions(x_new_local[intersect_ind, :], xp_local[intersect_ind, :],
-        #                                                    xn_local[intersect_ind, :], n, n0, np.array([1.0, 0, 0, 0]),
-        #                                                    l, self.grating_period, self.m)
         x_new = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(x_new_local))))
         xp_new = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xp_new_local)))
 
-        self.logger.info("\n\nx_local:\n {0}\n\nxp_local:\n {1}\n\nt:\n {2}\n\n"
-                         "xn_local:\n {3}\n\nx_new_local:\n {4}\n\nxp_new_local:\n {5}\n\n"
-                         "x_new:\n {6}\n\nxp_new:\n {7}"
-                         "".format(x_local, xp_local, t, xn_local, x_new_local, xp_new_local, x_new, xp_new))
+        self.logger.debug("\n\nx_local:\n {0}\n\nxp_local:\n {1}\n\nt:\n {2}\n\n"
+                          "xn_local:\n {3}\n\nx_new_local:\n {4}\n\nxp_new_local:\n {5}\n\n"
+                          "x_new:\n {6}\n\nxp_new:\n {7}"
+                          "".format(x_local, xp_local, t, xn_local, x_new_local, xp_new_local, x_new, xp_new))
 
-        rays[intersect_ind, 0, :] = x_new
-        rays[intersect_ind, 1, :] = xp_new
+        rays[:, 0, :] = x_new
+        rays[:, 1, :] = xp_new
         rays[intersect_ind, 2, 1] = n
         rays[intersect_ind, 2, 2] = ng
         return rays
+
+    def surface_intersect(self, x_local, xp_local):
+        """
+        Calculate intersection points and surface normals for rays intersecting plane surface.
+
+        Reimplement for other surface geometries.
+
+        :param x_local: Rays positions in surface local coordinates
+        :type x_local: np.array
+        :param xp_local: Rays directions in surface local coordinates
+        :type xp_local: np.array
+        :return: t, xn_local: distances to intersections, normal directions at intersection
+        :rtype:
+        """
+        t = -x_local[:, 2] / xp_local[:, 2]
+        xn_local = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0]), t.shape[0]), (t.shape[0], 4))
+        return t, xn_local
 
     def calculate_local_refractions(self, x, xp, xn, n, n0):
         """ Calculate refraction at surface for local coordinates x and
@@ -247,29 +253,38 @@ class Surface(object):
         """
         if reflector:
             if d is None:
-                xp_eff = n1 * xp
+                xp_eff = n1 / n2 * xp
             else:
-                xp_eff = n1 * xp + m * l0 / d * q
+                xp_eff = (n1 * xp + m * l0 / d * q) / n2
             xp2 = xp_eff - 2 * np.sum(np.multiply(xp_eff, xn), 1)[:, np.newaxis] * xn
             self.logger.info("\n-- Reflector --\nxp_eff:\n {0}\n\nxn:\n {1}\n\n"
                              "xp2:\n {2}\n".format(xp_eff, xn, xp2))
         else:
             if d is None:
-                xp_eff = n1 * xp
+                xp_eff = n1 / n2 * xp
             else:
-                xp_eff = n1 * xp + m * l0 / d * q
-            xdotn = np.sum(np.multiply(xp_eff, xn), 1)
-            quad = (xdotn**2 - np.sum(np.multiply(xp_eff, xp_eff), 1)) / n2**2 + 1
-            gamma = xdotn / n2 - np.sqrt(quad)
-            self.logger.debug("\nxp_eff: {0} \nxn:    {1}\ngamma: {2}".format(xp_eff.shape, xn.shape, gamma))
-            self.logger.debug("\nxp_eff: {0} \nxdotn:    {1}\nxn: {2}".format(xp_eff, xdotn, xn))
-            self.logger.debug("\nxdotn2: {0} \nx_eff2:    {1}\nn2: {2}".format(xdotn**2, np.sum(np.multiply(xp_eff, xp_eff), 1), n2))
+                xp_eff = (n1 * xp + m * l0 / d * q) / n2
+            xp_dot_n = np.sum(np.multiply(xp_eff, xn), 1)
+            quad = xp_dot_n**2 - np.sum(np.multiply(xp_eff, xp_eff), 1) + 1
+            if n1 > n2:
+                gamma = - xp_dot_n + np.sqrt(quad)
+                gamma2 = - xp_dot_n - np.sqrt(quad)
+            else:
+                gamma = - xp_dot_n - np.sqrt(quad)
+                gamma2 = - xp_dot_n + np.sqrt(quad)
+            # else:
+            #     gamma = (1 - mu**2) / (mu * xp_dot_n - np.sqrt(quad))
+            #     gamma2 = (1 - mu**2) / (mu * xp_dot_n + np.sqrt(quad))
+            self.logger.debug("\nquad:    {0}\ngamma: {1}".format(quad, gamma))
+            self.logger.debug("\nxp_eff: {0} \nxp_dot_n:    {1}\nxn: {2}".format(xp_eff, xp_dot_n, xn))
+            self.logger.debug("\nxdotn2: {0} \nx_eff2:    {1}\nn2: {2}".format(xp_dot_n**2, np.sum(np.multiply(xp_eff, xp_eff), 1), n2))
             xp2 = xp_eff / n2 + gamma[:, np.newaxis] * xn
+            xp2 = xp_eff + gamma[:, np.newaxis] * xn
             xp2[np.where(quad < 0)] = xp[np.where(quad < 0)]
 
         xp_norm = xp2 / np.sqrt((xp2**2).sum(1))[:, np.newaxis]
         # xp_norm = xp2
-        self.logger.info("\nxp:\n {0}\n\nxp_norm:\n {1} ".format(xp, xp_norm))
+        self.logger.info("\nxp:\n {0}\n\nxp_norm:\n {1}\n\nxn: {2}\n\nn1: {3}\n\nn2: {4}\n".format(xp, xp_norm, xn, n1, n2))
         return xp_norm
                 
     def calculate_local_refraction(self, x, xp, xn, n, n0):
@@ -482,76 +497,101 @@ class SphericalSurface(Surface):
             xpNew = None
             nNew = n0
 
-    def find_intersection_rays(self, rays):
-        """ This is for intersection with a plane surface. Re-implement for new surface types. 
-        Needs to find ray intersection and surface normal.
-        
-        Using the new rays matrix
-        """
-        x = rays[:, 0, :]
-        xp = rays[:, 1, :]
-        data = rays[:, 2, :]
-        n0 = rays[0, 2, 1] # Assume all rays have the same refractive index
-        l = rays[0, 2, 0] # Assume all rays have the same wavelength
-        n = self.material.get_refractive_index(l)
-        ng = self.material.get_group_refractive_index(l)
-        data[:, 1] = n
-        data[:, 2] = ng
-        nRays = x.shape[0]
+#     def find_intersection_rays(self, rays):
+#         """ This is for intersection with a plane surface. Re-implement for new surface types.
+#         Needs to find ray intersection and surface normal.
+#
+#         Using the new rays matrix
+#         """
+#         x = rays[:, 0, :]
+#         xp = rays[:, 1, :]
+#         data = rays[:, 2, :]
+#         n0 = rays[0, 2, 1] # Assume all rays have the same refractive index
+#         l = rays[0, 2, 0] # Assume all rays have the same wavelength
+#         n = self.material.get_refractive_index(l)
+#         ng = self.material.get_group_refractive_index(l)
+#         data[:, 1] = n
+#         data[:, 2] = ng
+#         nRays = x.shape[0]
+#
+#         # Transform to local coordinate system:
+#         xLocal = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(x))))
+#         xpLocal = np.transpose(np.dot(self.xpM, np.transpose(xp)))
+#
+#         # Spherical surface
+#         # Intersection where xLocal + t*xpLocal crosses |x-xc|^2 = r^2
+#         #
+#         xc = np.reshape(np.tile(np.array([0, 0, -self.r, 1]), nRays), (nRays, 4))
+#         xDiff = xLocal[:, 0:3] - xc[:, 0:3]
+#
+#         b = 2 * np.sum(np.multiply(xDiff, xpLocal[:, 0:3]), 1)
+#         c = np.sum(np.multiply(xDiff, xDiff), 1) - self.r ** 2
+#         sq2 = np.multiply(b, b) / 4 - c
+#         sq2PosInd = sq2 > 0         # Intersection exists for rays with indexes in sq2PosInd
+#         sq = np.sqrt(sq2[sq2PosInd])
+#         t = -b[sq2PosInd] / 2 + sq
+#         tNegInd = xLocal[sq2PosInd, 2] + np.multiply(t, xpLocal[sq2PosInd, 2]) + self.r < 0
+#         t[tNegInd] -= 2 * sq[tNegInd]
+#
+#         xNewLocal = xLocal[sq2PosInd, :] + np.transpose(np.multiply(np.transpose(xpLocal[sq2PosInd, :]), t))
+#         intersectInd = self.aperture.point_in_aperture(xNewLocal)
+#         xnLocal = xNewLocal[intersectInd, :] - xc[sq2PosInd, :][intersectInd, :]
+#         xnLocal = np.transpose(np.divide(np.transpose(xnLocal) , np.sqrt(np.sum(np.multiply(xnLocal, xnLocal), 1))))
+#         xpNewLocal = self.calculate_local_diffractions(xNewLocal[intersectInd, :],
+#                                                        xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
+#         xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))
+#         xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
+#
+# #         self.logger.info("\n\nintersect ind: {0}\nsq2PosInd: {1}".format(intersectInd, sq2PosInd))
+#         use_ind = np.logical_and(sq2PosInd, intersectInd)
+#         rays[use_ind, 0, :] = xNew
+#         rays[use_ind, 1, :] = xpNew
+#         rays[use_ind, 2, 1] = n
+#         rays[use_ind, 2, 2] = ng
+#         return rays
 
-        # Transform to local coordinate system:       
-        xLocal = np.transpose(np.dot(self.xpM, np.dot(self.xM, np.transpose(x))))        
-        xpLocal = np.transpose(np.dot(self.xpM, np.transpose(xp)))
-        
-        # Plane surface
-        # Intersection where xLocal + t*xpLocal crosses z = 0
-        # Reimplement here
-        t = -xLocal[:, 2] / xpLocal[:, 2]        
-        xnLocal = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0]), t.shape[0]), (t.shape[0], 4))
+    def surface_intersect(self, x_local, xp_local):
+        """
+        Calculate intersection points and surface normals for rays intersecting spherical surface.
+
+        :param x_local: Rays positions in surface local coordinates
+        :type x_local: np.array
+        :param xp_local: Rays directions in surface local coordinates
+        :type xp_local: np.array
+        :return: t, xn_local: distances to intersections, normal directions at intersection
+        :rtype:
+        """
+        t = -x_local[:, 2] / xp_local[:, 2]
+        xn_local = np.reshape(np.tile(np.array([0.0, 0.0, 1.0, 0.0]), t.shape[0]), (t.shape[0], 4))
 
         # Spherical surface
         # Intersection where xLocal + t*xpLocal crosses |x-xc|^2 = r^2
-        # 
-        xc = np.reshape(np.tile(np.array([0, 0, -self.r, 1]), nRays), (nRays, 4))
-        xDiff = xLocal[:, 0:3] - xc[:, 0:3]
-        
-        b = 2 * np.sum(np.multiply(xDiff, xpLocal[:, 0:3]), 1)
-        c = np.sum(np.multiply(xDiff, xDiff), 1) - self.r ** 2
+        #
+        n_rays = x_local.shape[0]
+        xc = np.reshape(np.tile(np.array([0, 0, -self.r, 1]), n_rays), (n_rays, 4))
+        x_diff = x_local[:, 0:3] - xc[:, 0:3]
+
+        b = 2 * np.sum(np.multiply(x_diff, xp_local[:, 0:3]), 1)
+        c = np.sum(np.multiply(x_diff, x_diff), 1) - self.r ** 2
         sq2 = np.multiply(b, b) / 4 - c
-#        print "sq2: ", sq2
-        sq2PosInd = sq2 > 0         # Intersection exists for rays with indexes in sq2PosInd
-        sq = np.sqrt(sq2[sq2PosInd])
-        t = -b[sq2PosInd] / 2 + sq        
-        tNegInd = xLocal[sq2PosInd, 2] + np.multiply(t, xpLocal[sq2PosInd, 2]) + self.r < 0
-        t[tNegInd] -= 2 * sq[tNegInd]
-        
-        xNewLocal = xLocal[sq2PosInd, :] + np.transpose(np.multiply(np.transpose(xpLocal[sq2PosInd, :]), t))
-        intersectInd = self.aperture.point_in_aperture(xNewLocal)
-        xnLocal = xNewLocal[intersectInd, :] - xc[sq2PosInd, :][intersectInd, :]
-        xnLocal = np.transpose(np.divide(np.transpose(xnLocal) , np.sqrt(np.sum(np.multiply(xnLocal, xnLocal), 1))))
-        # xpNewLocal = self.calculate_local_refractions(xNewLocal[intersectInd, :], xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
-        xpNewLocal = self.calculate_local_diffractions(xNewLocal[intersectInd, :],
-                                                       xpLocal[sq2PosInd, :][intersectInd, :], xnLocal, n, n0)
-        xNew = np.transpose(np.dot(self.xMT, np.dot(np.transpose(self.xpM), np.transpose(xNewLocal[intersectInd, :]))))            
-        xpNew = np.transpose(np.dot(np.transpose(self.xpM), np.transpose(xpNewLocal)))
-        
-#         self.logger.info("\n\nintersect ind: {0}\nsq2PosInd: {1}".format(intersectInd, sq2PosInd))
-        use_ind = np.logical_and(sq2PosInd, intersectInd)
-        rays[use_ind, 0, :] = xNew
-        rays[use_ind, 1, :] = xpNew
-        rays[use_ind, 2, 1] = n
-        rays[use_ind, 2, 2] = ng
-        return rays
-#        return np.dstack((xNew,xpNew,data)).swapaxes(1,2)
-        
-#         if self.aperture.pointInAperture(xNewLocal) == True:
-#             ray.addPos(xNewEl, xpNewEl, n, ng, 1.0, t)
-                
+        sq2_pos_ind = sq2 > 0  # Intersection exists for rays with indexes in sq2_pos_ind
+        sq = np.sqrt(sq2[sq2_pos_ind])
+        t = -b[sq2_pos_ind] / 2 + sq
+        t_neg_ind = x_local[sq2_pos_ind, 2] + np.multiply(t, xp_local[sq2_pos_ind, 2]) + self.r < 0
+        t[t_neg_ind] -= 2 * sq[t_neg_ind]
+
+        x_new_local = x_local[sq2_pos_ind, :] + np.transpose(np.multiply(np.transpose(xp_local[sq2_pos_ind, :]), t))
+        xn_local = x_new_local - xc[sq2_pos_ind, :]
+        xn_local = np.transpose(np.divide(np.transpose(xn_local), np.sqrt(np.sum(np.multiply(xn_local, xn_local), 1))))
+
+        return t, xn_local
+
     def generate_surface_edge(self):
         nbrPoints = 16
         theta0 = np.arcsin(self.aperture.size / self.r)
         theta = np.linspace(-theta0, theta0, nbrPoints)
         xe = np.vstack((-self.r * np.sin(theta), np.zeros(nbrPoints), -self.r * (1 - np.cos(theta)), np.ones(nbrPoints)))
         ye = np.vstack((np.zeros(nbrPoints), -self.r * np.sin(theta), -self.r * (1 - np.cos(theta)), np.ones(nbrPoints)))
-        self.surface_edge = np.transpose(np.hstack((xe, ye)))
+        nan = np.array([np.nan, np.nan, np.nan, 1.0])
+        self.surface_edge = np.transpose(np.hstack((xe, nan[:, np.newaxis], ye)))
 

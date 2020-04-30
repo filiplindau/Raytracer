@@ -84,6 +84,10 @@ class OpticalSystem(object):
     def rotate_optical_axis_after_element(self, theta, phi, element_number):
         self.optical_axis_theta[element_number+1] = theta
         self.optical_axis_phi[element_number+1] = phi
+        self.update_transform_matrix_list()
+
+    def update_transform_matrix_list(self):
+        M = np.identity(4)
         for ind in range(len(self.elements)):
             theta = self.optical_axis_theta[ind]
             thM = np.array([[1.0, 0.0, 0.0, 0.0],
@@ -97,7 +101,8 @@ class OpticalSystem(object):
                             [-np.sin(phi), 0.0, np.cos(phi), 0.0],
                             [0.0, 0.0, 0.0, 1.0]])
 
-            self.optical_axis_xpM[element_number + 1] = np.dot(self.optical_axis_xpM[element_number + 1], np.dot(thM, phM))
+            M = np.dot(M, np.dot(thM, phM))
+            self.optical_axis_xpM[ind] = M
 
     def add_ray_source(self, ray_source):
         self.ray_source_list.append(ray_source)
@@ -122,6 +127,20 @@ class OpticalSystem(object):
                         raysT[:, 1, :] = np.transpose(
                             np.dot(np.transpose(self.optical_axis_xpM[ind]), np.transpose(raysT[:, 1, :])))
                         raySource.update_rays(raysT)
+
+    def aim_ray(self, element_number, pos):
+        """
+        Aim ray to pass through position on element.
+
+        :param element_number:
+        :type element_number:
+        :param pos:
+        :type pos:
+        :return:
+        :rtype:
+        """
+
+        pass
 
     def get_rays_footprint(self, ray_source_number, element_number, surface_number):
         sn = 1
