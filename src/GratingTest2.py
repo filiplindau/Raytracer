@@ -41,29 +41,25 @@ opt_sys = optsys.OpticalSystem()
 
 fs = opt_sys.material_library.get_material('fs')
 
-grating = oe.GratingElement(x=np.array([0, 0, 50e-3]), grating_period=260e-9, m=1)
-# grating = oe.GratingElement(x=np.array([0, 0, 50e-3]), grating_period=30e-8, m=1)
-grating.set_rotation(0, -28.5*np.pi/180)
-
-lens0 = oe.PCXElement(x=np.array([0, 0, 100e-3]), r=250e-3, thickness=4.4e-3, material=fs, size=50.8e-3)
-lens1 = oe.PCXElement(x=np.array([0, 0, 100e-3]), r=250e-3, thickness=4.4e-3, material=fs, size=50.8e-3)
-
 slab0 = oe.OpticalElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]),
                           material=opt_sys.material_library.get_material('fs'), size=50e-3)
 slab0.set_rotation(0, 0 * np.pi / 180)
 
-slab1 = oe.OpticalElement(n=1.5, thickness=20e-3, x=np.array([0, 0, 100e-3]),
+slab1 = oe.OpticalElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]),
                           material=opt_sys.material_library.get_material('fs'), size=50e-3)
 slab1.set_rotation(0, 0 * np.pi / 180)
+slab2 = oe.OpticalElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]),
+                          material=opt_sys.material_library.get_material('fs'), size=50e-3)
+slab2.set_rotation(0, 0 * np.pi / 180)
+slab3 = oe.OpticalElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]),
+                          material=opt_sys.material_library.get_material('fs'), size=50e-3)
+slab3.set_rotation(0, 0 * np.pi / 180)
 
-disp_plane = oe.ScreenElement(x=np.array([0, 0, 500e-3]))
-disp_plane.rotate_element(0, 0 * np.pi / 180)
 
-screen = oe.ScreenElement(x=np.array([0, 0, 500e-3]))
+screen = oe.ScreenElement(x=np.array([0, 0, 100e-3]))
 screen.rotate_element(0, 0 * np.pi / 180)
 
-r1 = rs.Collimated1DSource(num_rays=10, x_dim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
-r2 = rs.Collimated1DSource(num_rays=3, x_dim=10e-3, l=265e-9, color=(0, 0.5, 0))
+r1 = rs.Collimated1DSource(num_rays=3, x_dim=10e-3, l=263e-9, color=(0.15, 0.1, 0.75))
 theta = 0 * np.pi / 180.0
 m = np.array([[1.0, 0.0, 0.0, 0.0],
               [0.0, +np.cos(theta), np.sin(theta), 0.0],
@@ -74,24 +70,24 @@ m = np.array([[+np.cos(phi), 0.0, np.sin(phi), 0.0],
               [0.0, 1.0, 0.0, 0.0],
               [-np.sin(phi), 0.0, np.cos(phi), 0.0],
               [0.0, 0.0, 0.0, 1.0]])
-r2.rays[:, 1, :] = np.dot(m, r2.rays[:, 1, :].transpose()).transpose()
+r1.rays[:, 1, :] = np.dot(m, r1.rays[:, 1, :].transpose()).transpose()
 
 
-opt_sys.add_element(grating)
-# opt_sys.add_element(slab0)
-opt_sys.add_element(lens0)
-# opt_sys.add_element(disp_plane)
-# opt_sys.add_element(lens1)
 opt_sys.add_element(slab0)
 opt_sys.add_element(slab1)
+opt_sys.add_element(slab2)
+opt_sys.add_element(slab3)
 opt_sys.add_element(screen)
-opt_sys.rotate_optical_axis_after_element(0, -61 * np.pi / 180, 0)
-opt_sys.rotate_optical_axis_after_element(0, 10 * np.pi / 180, 2)
+opt_sys.rotate_optical_axis_after_element(0, 3 * np.pi / 180, 0)
+opt_sys.rotate_optical_axis_after_element(0, 0 * np.pi / 180, 1)
+opt_sys.rotate_optical_axis_after_element(0, 0 * np.pi / 180, 2)
+opt_sys.rotate_optical_axis_after_element(0, 0 * np.pi / 180, 3)
+opt_sys.rotate_optical_axis_after_element(0, 0 * np.pi / 180, 4)
 
-opt_sys.add_ray_source(r2)
+opt_sys.add_ray_source(r1)
 # opt_sys.add_ray_source(r2)
 logger.info("raytracing...")
-opt_sys.trace_system()
+opt_sys.trace_system2()
 
 # Draw trace:
 fig = mpl.figure(1)
