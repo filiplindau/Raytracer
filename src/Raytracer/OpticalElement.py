@@ -310,7 +310,7 @@ class MirrorElement(OpticalElement):
         self.material.reflector = True
 
     def init_surfaces(self):
-        ap = oa.CircularAperture()
+        ap = oa.CircularAperture(size=self.size)
         s1 = os.Surface(x=np.array([0, 0, 0, 1]), xn=-self.xn, xt=self.xt, n=self.n,
                         material=self.material, aperture=ap)
         s1.set_rotation_internal(0, 0)

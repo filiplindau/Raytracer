@@ -44,10 +44,10 @@ grating = oe.GratingElement(x=np.array([0, 0, 20e-3]), grating_period=260e-9, m=
 mirror0 = oe.MirrorElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 20e-3]),
                            material=opt_sys.material_library.get_material('fs'), size=50.8e-3)
 mirror1 = oe.MirrorElement(n=1.5, thickness=10e-3, x=np.array([0, 0, 100e-3]),
-                           material=opt_sys.material_library.get_material('fs'), size=50.8e-3)
-mirror1.set_rotation(0, 45*np.pi/180)
+                           material=opt_sys.material_library.get_material('fs'), size=250.8e-3)
+mirror1.set_rotation(0, 85*np.pi/180)
 
-screen = oe.ScreenElement(x=np.array([0, 0, 200e-3]))
+screen = oe.ScreenElement(x=np.array([0, 0, 400e-3]))
 screen.rotate_element(0, 0 * np.pi / 180)
 
 slab0 = oe.OpticalElement(n=1.0, thickness=2e-3, x=np.array([0, 0, 20e-3]),
@@ -77,13 +77,13 @@ r1.rays[:, 1, :] = np.dot(m, r1.rays[:, 1, :].transpose()).transpose()
 # optSys.addElement(slab)
 # opt_sys.add_element(grating)
 # opt_sys.add_element(mirror0)
-# opt_sys.add_element(mirror1)
+opt_sys.add_element(mirror1)
 # opt_sys.add_element(slab0)
 # opt_sys.add_element(slab1)
 # opt_sys.add_element(slab2)
 opt_sys.add_element(lens0)
 opt_sys.add_element(screen)
-# opt_sys.rotate_optical_axis_after_element(0, -90 * np.pi / 180, 0)
+opt_sys.rotate_optical_axis_after_element(0, -10 * np.pi / 180, 0)
 # opt_sys.rotate_optical_axis_after_element(0, -0 * np.pi / 180, 1)
 opt_sys.add_ray_source(r1)
 # opt_sys.add_ray_source(r2)
